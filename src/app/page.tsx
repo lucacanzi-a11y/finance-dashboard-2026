@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -49,7 +47,7 @@ interface ExpenseConfig {
   // Lifestyle & Kids
   dining: number; 
   education: number; 
-  shopping: number; // Renamed from clothes
+  shopping: number; 
   sport: number; 
   activities: number; 
   
@@ -368,12 +366,12 @@ export default function FinanceDashboard() {
       ? (effectiveSavings / effectiveIncome) * 100 
       : 0;
 
-    // Categorization for Pie Chart
+    // Categorization for Pie Chart - Updated Taxonomy
     const pieData = [
-      { name: 'Fixed (Home/Bills)', value: (state.expenses.mortgage + state.expenses.utilities + state.expenses.houseMaintenance) * 12 },
-      { name: 'Living (Food/Help)', value: (state.expenses.groceries + state.expenses.transport + state.expenses.houseHelp + state.expenses.healthcare + state.expenses.various) * 12 },
-      { name: 'Lifestyle (Fun/Shop)', value: (state.expenses.dining + state.expenses.shopping + state.expenses.sport) * 12 },
-      { name: 'Kids (Edu/Activity)', value: (state.expenses.education + state.expenses.activities) * 12 },
+      { name: 'Housing & Utilities', value: (state.expenses.mortgage + state.expenses.utilities + state.expenses.houseMaintenance) * 12 },
+      { name: 'Daily Living', value: (state.expenses.groceries + state.expenses.transport + state.expenses.houseHelp + state.expenses.healthcare + state.expenses.various) * 12 },
+      { name: 'Lifestyle & Sport', value: (state.expenses.dining + state.expenses.shopping + state.expenses.sport) * 12 },
+      { name: 'Education', value: (state.expenses.education + state.expenses.activities) * 12 },
       { name: 'Travel', value: state.expenses.vacationEaster + state.expenses.vacationSummer + state.expenses.vacationXmas },
     ];
 
@@ -384,16 +382,6 @@ export default function FinanceDashboard() {
   
   // --- File Handlers ---
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleExport = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `finplan_2026_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  };
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -410,6 +398,7 @@ export default function FinanceDashboard() {
       if (typeof text === 'string') {
         try {
           const parsed = JSON.parse(text);
+          // Basic check to ensure it's a valid config
           if (parsed.income && parsed.expenses) {
              setState(parsed);
           } else {
@@ -572,13 +561,10 @@ export default function FinanceDashboard() {
             <button onClick={resetToDefaults} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm transition-all shadow-sm">
               <RotateCcw size={14} /> Reset
             </button>
-            <button onClick={handleExport} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-sm transition-all shadow-sm">
-              <Save size={14} /> Save
-            </button>
              <button onClick={handleImportClick} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-sm transition-all shadow-sm">
               <Upload size={14} /> Load
             </button>
-            <button onClick={handlePrint} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 text-sm transition-all shadow-sm">
+            <button onClick={handlePrint} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 text-sm transition-all shadow-sm col-span-2">
               <Printer size={14} /> Print / Save PDF
             </button>
           </div>
@@ -614,14 +600,20 @@ export default function FinanceDashboard() {
               secondary={true}
             />
             <Card 
-              title="Net Liquidity" 
+              title="Cash Savings" 
               value={formatCurrency(totals.netLiquidity)} 
               subtext="Accumulated Cash (No Equity)" 
               icon={Wallet} 
               highlight={true}
             />
+            <Card 
+              title={state.equity.includeInSavingsRate ? "Total Savings Rate" : "Cash Savings Rate"}
+              value={`${totals.dynamicSavingsRate.toFixed(1)}%`} 
+              subtext={state.equity.includeInSavingsRate ? "Incl. Equity" : "Excl. Equity"}
+              icon={TrendingUp} 
+            />
              <Card 
-              title="Google Equity" 
+              title="Equity Savings" 
               value={formatCurrency(totalEquityValue)} 
               subtext="Gross Asset Value (EUR)" 
               icon={DollarSign} 
@@ -641,19 +633,15 @@ export default function FinanceDashboard() {
               icon={CreditCard} 
               secondary={true}
             />
-            <Card 
-              title={state.equity.includeInSavingsRate ? "Total Savings Rate" : "Cash Savings Rate"}
-              value={`${totals.dynamicSavingsRate.toFixed(1)}%`} 
-              subtext={state.equity.includeInSavingsRate ? "Incl. Equity" : "Excl. Equity"}
-              icon={TrendingUp} 
-            />
-            <Card 
-              title="Tax Trap (SEFO)" 
-              value={formatCurrency(totals.taxDebt)} 
-              subtext="Saved for IRPEF Adj." 
-              icon={AlertTriangle} 
-              alert={totals.taxDebt > 1000}
-            />
+            {state.consultancy.isActive && (
+              <Card 
+                title="Tax Trap" 
+                value={formatCurrency(totals.taxDebt)} 
+                subtext="Saved for IRPEF Adj." 
+                icon={AlertTriangle} 
+                alert={totals.taxDebt > 1000}
+              />
+            )}
           </div>
 
           {/* Charts Row */}
@@ -716,7 +704,7 @@ export default function FinanceDashboard() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -749,11 +737,11 @@ export default function FinanceDashboard() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val / 1000}k`} />
+                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} formatter={(val) => `€${val / 1000}k`} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#1e293b' }}
                       itemStyle={{ fontSize: '12px' }}
-                      formatter={(value: any) => formatCurrency(value)}
+                      formatter={(value: number) => formatCurrency(value)}
                     />
                     <Area type="monotone" dataKey="cumulativeWealth" stroke="#3b82f6" fillOpacity={1} fill="url(#colorNetWorth)" strokeWidth={2} />
                     <Area type="monotone" dataKey="cumulativeCash" stroke="#10b981" fillOpacity={1} fill="url(#colorCash)" strokeWidth={2} />
