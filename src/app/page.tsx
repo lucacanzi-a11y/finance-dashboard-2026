@@ -334,7 +334,7 @@ export default function FinanceDashboard() {
   const [state, setState] = useState<AppState>(() => {
     // Only access localStorage on client side
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('finance_dashboard_2026_v12');
+      const saved = localStorage.getItem('finance_dashboard_2026_v13');
       if (saved) {
         try { return JSON.parse(saved); } catch (e) { console.error(e); }
       }
@@ -343,7 +343,7 @@ export default function FinanceDashboard() {
   });
 
   useEffect(() => {
-    localStorage.setItem('finance_dashboard_2026_v12', JSON.stringify(state));
+    localStorage.setItem('finance_dashboard_2026_v13', JSON.stringify(state));
   }, [state]);
 
   const { projection, totalEquityValue } = useMemo(() => calculateProjections(state), [state]);
@@ -578,7 +578,7 @@ export default function FinanceDashboard() {
               <Upload size={14} /> Load
             </button>
             <button onClick={handlePrint} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 text-sm transition-all shadow-sm">
-              <Printer size={14} /> PDF
+              <Printer size={14} /> Print / Save PDF
             </button>
           </div>
         </aside>
@@ -687,7 +687,7 @@ export default function FinanceDashboard() {
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                       itemStyle={{ fontSize: '12px', fontWeight: 600 }}
-                      formatter={(value: number) => formatCurrency(value)}
+                      formatter={(value: any) => formatCurrency(value)}
                     />
                     <ReferenceLine y={0} stroke="#cbd5e1" />
                     <Line type="monotone" dataKey="totalIncome" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 0 }} activeDot={{ r: 6 }} />
@@ -715,7 +715,7 @@ export default function FinanceDashboard() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip formatter={(value: any) => formatCurrency(value)} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -752,7 +752,7 @@ export default function FinanceDashboard() {
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#1e293b' }}
                       itemStyle={{ fontSize: '12px' }}
-                      formatter={(value: number) => formatCurrency(value)}
+                      formatter={(value: any) => formatCurrency(value)}
                     />
                     <Area type="monotone" dataKey="cumulativeWealth" stroke="#3b82f6" fillOpacity={1} fill="url(#colorNetWorth)" strokeWidth={2} />
                     <Area type="monotone" dataKey="cumulativeCash" stroke="#10b981" fillOpacity={1} fill="url(#colorCash)" strokeWidth={2} />
