@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   ComposedChart, ReferenceLine, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import { 
   TrendingUp, Wallet, AlertTriangle, Briefcase, 
-  Home, GraduationCap, Plane, Save, RotateCcw, Download, Upload,
-  ShoppingCart, Car, Utensils, Heart, Users, Shirt, Trophy, Printer, FileText, Layers,
+  Home, GraduationCap, Plane, RotateCcw,
+  ShoppingCart, Car, Utensils, Heart, Users, Shirt, Trophy, Printer, Layers,
   CreditCard, DollarSign, Wrench, ShoppingBag
 } from 'lucide-react';
 
@@ -370,10 +370,10 @@ export default function FinanceDashboard() {
 
     // Categorization for Pie Chart
     const pieData = [
-      { name: 'Fixed (Home/Bills)', value: (state.expenses.mortgage + state.expenses.utilities + state.expenses.houseMaintenance) * 12 },
-      { name: 'Living (Food/Help)', value: (state.expenses.groceries + state.expenses.transport + state.expenses.houseHelp + state.expenses.healthcare + state.expenses.various) * 12 },
-      { name: 'Lifestyle (Fun/Shop)', value: (state.expenses.dining + state.expenses.shopping + state.expenses.sport) * 12 },
-      { name: 'Kids (Edu/Activity)', value: (state.expenses.education + state.expenses.activities) * 12 },
+      { name: 'Housing & Utilities', value: (state.expenses.mortgage + state.expenses.utilities + state.expenses.houseMaintenance) * 12 },
+      { name: 'Daily Living', value: (state.expenses.groceries + state.expenses.transport + state.expenses.houseHelp + state.expenses.healthcare + state.expenses.various) * 12 },
+      { name: 'Lifestyle & Sport', value: (state.expenses.dining + state.expenses.shopping + state.expenses.sport) * 12 },
+      { name: 'Education', value: (state.expenses.education + state.expenses.activities) * 12 },
       { name: 'Travel', value: state.expenses.vacationEaster + state.expenses.vacationSummer + state.expenses.vacationXmas },
     ];
 
@@ -382,49 +382,6 @@ export default function FinanceDashboard() {
 
   const resetToDefaults = () => setState(DEFAULT_STATE);
   
-  // --- File Handlers ---
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleExport = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `finplan_2026_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const fileObj = event.target.files && event.target.files[0];
-    if (!fileObj) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result;
-      if (typeof text === 'string') {
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed.income && parsed.expenses) {
-             setState(parsed);
-          } else {
-             alert("Invalid configuration file format.");
-          }
-        } catch (error) {
-          console.error("Invalid JSON file");
-          alert("Failed to load file: Invalid JSON.");
-        }
-      }
-    };
-    reader.readAsText(fileObj);
-    event.target.value = ''; 
-  };
-
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
       window.focus();
@@ -562,21 +519,8 @@ export default function FinanceDashboard() {
           </div>
 
           <div className="p-6 border-t border-slate-200 grid grid-cols-2 gap-2 bg-slate-50">
-             <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              className="hidden" 
-              accept=".json"
-            />
             <button onClick={resetToDefaults} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm transition-all shadow-sm">
               <RotateCcw size={14} /> Reset
-            </button>
-            <button onClick={handleExport} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-sm transition-all shadow-sm">
-              <Save size={14} /> Save
-            </button>
-             <button onClick={handleImportClick} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-sm transition-all shadow-sm">
-              <Upload size={14} /> Load
             </button>
             <button onClick={handlePrint} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 text-sm transition-all shadow-sm">
               <Printer size={14} /> Print / Save PDF
@@ -751,7 +695,7 @@ export default function FinanceDashboard() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} formatter={(val) => `€${val / 1000}k`} />
+                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val / 1000}k`} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#1e293b' }}
                       itemStyle={{ fontSize: '12px' }}
