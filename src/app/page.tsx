@@ -70,42 +70,42 @@ interface AppState {
 
 const DEFAULT_STATE: AppState = {
   income: {
-    baseSalaryGross: 160000, 
-    variableBonusGross: 57000, 
-    spotBonusNet: 3000,
+    baseSalaryGross: 0, 
+    variableBonusGross: 0, 
+    spotBonusNet: 0,
     salaryIncreasePct: 0,
   },
   consultancy: {
     isActive: true,
-    grossMonthly: 3161,
+    grossMonthly: 0,
     skipAugust: true,
   },
   equity: {
-    stockPriceUSD: 180,
-    annualUnits: 296, 
+    stockPriceUSD: 0,
+    annualUnits: 0, 
     eurUsdRate: 1.08,
     sellOnVest: false,
     includeInSavingsRate: false, 
   },
   expenses: {
-    mortgage: 2800,
-    houseMaintenance: 300, 
-    utilities: 600,
-    groceries: 1500,
-    transport: 500,
-    houseHelp: 800,
-    healthcare: 300,
-    various: 200, 
+    mortgage: 0,
+    houseMaintenance: 0, 
+    utilities: 0,
+    groceries: 0,
+    transport: 0,
+    houseHelp: 0,
+    healthcare: 0,
+    various: 0, 
     
-    dining: 800,
-    education: 1200, 
-    shopping: 400, 
-    sport: 300,   
-    activities: 400, 
+    dining: 0,
+    education: 0, 
+    shopping: 0, 
+    sport: 0,   
+    activities: 0, 
 
-    vacationEaster: 1500,
-    vacationSummer: 6000,
-    vacationXmas: 3000,
+    vacationEaster: 0,
+    vacationSummer: 0,
+    vacationXmas: 0,
   }
 };
 
@@ -277,9 +277,10 @@ const InputGroup = ({ label, value, onChange, type = "currency", icon: Icon }: a
     <div className="relative">
       <input
         type="number"
-        value={value}
+        value={value === 0 ? '' : value}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono shadow-sm"
+        placeholder="add value"
+        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono shadow-sm placeholder:text-slate-300"
       />
       <span className="absolute right-3 top-2 text-xs text-slate-400">
         {type === "currency" ? "€" : type === "usd" ? "$" : type === "pct" ? "%" : type === "units" ? "Un" : ""}
