@@ -49,7 +49,7 @@ interface ExpenseConfig {
   // Lifestyle & Kids
   dining: number; 
   education: number; 
-  shopping: number; // Renamed from clothes
+  shopping: number; 
   sport: number; 
   activities: number; 
   
@@ -335,7 +335,7 @@ export default function FinanceDashboard() {
   const [state, setState] = useState<AppState>(() => {
     // Only access localStorage on client side
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('finance_dashboard_2026_v13');
+      const saved = localStorage.getItem('finance_dashboard_2026_v14');
       if (saved) {
         try { return JSON.parse(saved); } catch (e) { console.error(e); }
       }
@@ -344,7 +344,7 @@ export default function FinanceDashboard() {
   });
 
   useEffect(() => {
-    localStorage.setItem('finance_dashboard_2026_v13', JSON.stringify(state));
+    localStorage.setItem('finance_dashboard_2026_v14', JSON.stringify(state));
   }, [state]);
 
   const { projection, totalEquityValue } = useMemo(() => calculateProjections(state), [state]);
@@ -405,7 +405,7 @@ export default function FinanceDashboard() {
       <div className="flex flex-col lg:flex-row min-h-screen">
         
         {/* --- Sidebar --- */}
-        <aside className="w-full lg:w-96 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 overflow-y-auto z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
+        <aside className="w-full lg:w-96 bg-white border-r border-slate-200 flex flex-col lg:h-screen lg:sticky top-0 lg:overflow-y-auto z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
           <div className="p-6 border-b border-slate-100 bg-slate-50/50">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="text-blue-600" />
@@ -529,7 +529,7 @@ export default function FinanceDashboard() {
         </aside>
 
         {/* --- Main Dashboard --- */}
-        <main className="flex-1 p-6 lg:p-12 overflow-y-auto">
+        <main className="flex-1 p-6 lg:p-12 lg:overflow-y-auto">
           
           <div className="mb-10 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
             <div>
