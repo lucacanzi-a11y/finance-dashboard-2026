@@ -230,6 +230,7 @@ const calculateCashFlow = (state: AppState) => {
   const variableBonusNet = totalNetWithBonus - annualBaseNet;
 
   const projection = MONTHS.map((month, index) => {
+    // 1. FORECAST CALCULATIONS
     let monthlyIncome = monthlyBaseNet;
     if (index === 5) monthlyIncome += monthlyBaseNet; 
     if (index === 11) monthlyIncome += monthlyBaseNet; 
@@ -268,15 +269,20 @@ const calculateCashFlow = (state: AppState) => {
     if (index === 6 || index === 7) monthlyExpenses += (expenses.vacationSummer / 2);
     if (index === 11) monthlyExpenses += expenses.vacationXmas;
 
-    // APPLY MANUAL ADJUSTMENTS
-    const adjIncome = adjustments.income[index] || 0;
-    const adjExpense = adjustments.expenses[index] || 0;
+    // 2. ACTUALS OVERRIDE LOGIC
+    // If user enters a value (>0) in the adjustment field, it REPLACES the forecast entirely.
+    const actualIncome = adjustments.income[index] || 0;
+    const actualExpense = adjustments.expenses[index] || 0;
 
-    const totalCashIn = monthlyIncome + consultancyNet + equityCashFlow + adjIncome;
-    const totalExpensesWithAdj = monthlyExpenses + adjExpense;
-    const netLiquidChange = totalCashIn - totalExpensesWithAdj;
+    const forecastTotalCashIn = monthlyIncome + consultancyNet + equityCashFlow;
+    const totalCashIn = actualIncome > 0 ? actualIncome : forecastTotalCashIn;
+
+    const forecastTotalExpenses = monthlyExpenses;
+    const totalExpenses = actualExpense > 0 ? actualExpense : forecastTotalExpenses;
+
+    const netLiquidChange = totalCashIn - totalExpenses;
     
-    totalTaxBuffer += taxDebt;
+    totalTaxBuffer += taxDebt; // Tax trap remains calculated on forecast logic for safety, or should we manual? Keeping forecast for safety.
     totalEquityValue += vestedValueEUR; 
     cumulativeCash += netLiquidChange; 
     cumulativeWealth += (netLiquidChange + portfolioGrowth);
@@ -286,10 +292,10 @@ const calculateCashFlow = (state: AppState) => {
       salary: monthlyIncome,
       consultancy: consultancyNet,
       equityCash: equityCashFlow,
-      adjIncome, // For displaying
+      adjIncome: actualIncome, // Stored for display
       totalIncome: totalCashIn,
-      expenses: totalExpensesWithAdj, // Includes adjustments
-      adjExpense, // For displaying
+      expenses: totalExpenses,
+      adjExpense: actualExpense, // Stored for display
       netFlow: netLiquidChange,
       taxDebtAccrual: taxDebt,
       cumulativeCash: cumulativeCash,
@@ -773,7 +779,7 @@ export default function FinanceDashboard() {
               <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-8">
                 <div className="flex items-center gap-2 mb-4">
                   <SlidersHorizontal size={20} className="text-slate-600" />
-                  <h3 className="text-lg font-bold text-slate-800">Monthly Manual Adjustments</h3>
+                  <h3 className="text-lg font-bold text-slate-800">Monthly Actuals (Overrides)</h3>
                 </div>
                 <div className="overflow-x-auto pb-2">
                   <div className="flex gap-4 min-w-max">
@@ -853,9 +859,9 @@ export default function FinanceDashboard() {
                         <th className="px-6 py-4 font-bold">Month</th>
                         <th className="px-6 py-4 font-bold text-emerald-600">Income</th>
                         <th className="px-6 py-4 font-bold text-emerald-800/60">Equity (Gross)</th>
-                        <th className="px-6 py-4 font-bold text-slate-500">Adj. In</th>
+                        <th className="px-6 py-4 font-bold text-slate-500">Actual In</th>
                         <th className="px-6 py-4 font-bold text-rose-600">Expenses</th>
-                        <th className="px-6 py-4 font-bold text-slate-500">Adj. Out</th>
+                        <th className="px-6 py-4 font-bold text-slate-500">Actual Out</th>
                         <th className="px-6 py-4 font-bold text-blue-600">Net Flow</th>
                         <th className="px-6 py-4 font-bold text-amber-600">Tax Debt</th>
                       </tr>
@@ -866,9 +872,9 @@ export default function FinanceDashboard() {
                           <td className="px-6 py-4 font-medium text-slate-900">{row.name}</td>
                           <td className="px-6 py-4 text-emerald-600 font-mono font-medium">{formatCurrency(row.totalIncome)}</td>
                           <td className="px-6 py-4 text-emerald-800/60 font-mono">{formatCurrency(row.vestedValueEUR)}</td>
-                          <td className="px-6 py-4 text-slate-500 font-mono">{row.adjIncome !== 0 ? `+${formatCurrency(row.adjIncome)}` : '-'}</td>
+                          <td className="px-6 py-4 text-slate-500 font-mono">{row.adjIncome !== 0 ? formatCurrency(row.adjIncome) : '-'}</td>
                           <td className="px-6 py-4 text-rose-600 font-mono font-medium">{formatCurrency(row.expenses)}</td>
-                          <td className="px-6 py-4 text-slate-500 font-mono">{row.adjExpense !== 0 ? `+${formatCurrency(row.adjExpense)}` : '-'}</td>
+                          <td className="px-6 py-4 text-slate-500 font-mono">{row.adjExpense !== 0 ? formatCurrency(row.adjExpense) : '-'}</td>
                           <td className={`px-6 py-4 font-mono font-bold ${row.netFlow > 0 ? 'text-slate-700' : 'text-rose-600'}`}>
                             {formatCurrency(row.netFlow)}
                           </td>
