@@ -10,12 +10,12 @@ import {
   Home, GraduationCap, Plane, Save, RotateCcw, Download, Upload,
   ShoppingCart, Car, Utensils, Heart, Users, Shirt, Trophy, Printer, FileText, Layers,
   CreditCard, DollarSign, Wrench, ShoppingBag, Building2, Coins, CandlestickChart, Plus, Trash2,
-  Landmark, ArrowRight, PieChart as PieChartIcon, BarChart3, SlidersHorizontal
+  Landmark, ArrowRight, PieChart as PieChartIcon, BarChart3, SlidersHorizontal, LayoutDashboard,
+  Edit3, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // --- Types & Interfaces ---
 
-// --- TAB 1: CASH FLOW TYPES ---
 interface IncomeConfig {
   baseSalaryGross: number; 
   variableBonusGross: number; 
@@ -61,16 +61,14 @@ interface ExpenseConfig {
   vacationXmas: number; 
 }
 
-// --- TAB 2: NET WORTH TYPES ---
 interface Asset {
   id: string;
   name: string;
   category: 'Real Estate' | 'ETF/Stocks' | 'Crypto' | 'Private Equity' | 'Cash/Liquidity' | 'Pension';
-  valueSoY: number; // Start of Year Value
-  expectedGrowthPct: number; // Annual Growth %
+  valueSoY: number; 
+  expectedGrowthPct: number; 
 }
 
-// --- TAB 3: INVESTMENTS TYPES ---
 interface PortfolioItem {
   id: string;
   ticker: string; 
@@ -89,10 +87,9 @@ interface AppState {
   expenses: ExpenseConfig;
   assets: Asset[];
   portfolio: PortfolioItem[];
-  // New: Monthly adjustments
   adjustments: {
-    income: number[]; // Array of 12 values
-    expenses: number[]; // Array of 12 values
+    income: number[]; 
+    expenses: number[]; 
   };
 }
 
@@ -151,7 +148,6 @@ const DEFAULT_STATE: AppState = {
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 const VESTING_WEIGHTS = [15, 15, 30, 20, 21, 42, 20, 20, 31, 20, 20, 42];
 const TOTAL_WEIGHT = VESTING_WEIGHTS.reduce((a, b) => a + b, 0);
 
@@ -238,12 +234,13 @@ const calculateCashFlow = (state: AppState) => {
     if (index === 2) monthlyIncome += variableBonusNet; 
     if (index === 11) monthlyIncome += income.spotBonusNet; 
 
+    // COCOCO LOGIC (Based on SEFO5 PDF)
     let consultancyNet = 0;
     let taxDebt = 0;
     const isWorkingMonth = !(consultancy.skipAugust && index === 7);
     if (consultancy.isActive && isWorkingMonth) {
-      consultancyNet = consultancy.grossMonthly * 0.80; 
-      taxDebt = consultancy.grossMonthly * (0.43 - 0.20); 
+      consultancyNet = consultancy.grossMonthly * 0.65; // ~65% Netto Busta
+      taxDebt = consultancy.grossMonthly * 0.15; // 15% Conguaglio
     }
 
     const monthlyWeight = VESTING_WEIGHTS[index];
@@ -270,11 +267,11 @@ const calculateCashFlow = (state: AppState) => {
     if (index === 11) monthlyExpenses += expenses.vacationXmas;
 
     // 2. ACTUALS OVERRIDE LOGIC
-    // If user enters a value (>0) in the adjustment field, it REPLACES the forecast entirely.
     const actualIncome = adjustments.income[index] || 0;
     const actualExpense = adjustments.expenses[index] || 0;
 
     const forecastTotalCashIn = monthlyIncome + consultancyNet + equityCashFlow;
+    // IF Actual > 0, use Actual, else Forecast
     const totalCashIn = actualIncome > 0 ? actualIncome : forecastTotalCashIn;
 
     const forecastTotalExpenses = monthlyExpenses;
@@ -282,7 +279,7 @@ const calculateCashFlow = (state: AppState) => {
 
     const netLiquidChange = totalCashIn - totalExpenses;
     
-    totalTaxBuffer += taxDebt; // Tax trap remains calculated on forecast logic for safety, or should we manual? Keeping forecast for safety.
+    totalTaxBuffer += taxDebt; 
     totalEquityValue += vestedValueEUR; 
     cumulativeCash += netLiquidChange; 
     cumulativeWealth += (netLiquidChange + portfolioGrowth);
@@ -292,10 +289,12 @@ const calculateCashFlow = (state: AppState) => {
       salary: monthlyIncome,
       consultancy: consultancyNet,
       equityCash: equityCashFlow,
-      adjIncome: actualIncome, // Stored for display
+      adjIncome: actualIncome, 
+      forecastIncome: forecastTotalCashIn,
       totalIncome: totalCashIn,
       expenses: totalExpenses,
-      adjExpense: actualExpense, // Stored for display
+      forecastExpenses: forecastTotalExpenses,
+      adjExpense: actualExpense, 
       netFlow: netLiquidChange,
       taxDebtAccrual: taxDebt,
       cumulativeCash: cumulativeCash,
@@ -394,8 +393,8 @@ const calculatePortfolio = (state: AppState) => {
 // --- Components ---
 
 const InputGroup = ({ label, value, onChange, type = "currency", icon: Icon }: any) => (
-  <div className="mb-4">
-    <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+  <div className="mb-2">
+    <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
       {Icon && <Icon size={12} className="text-slate-400" />}
       {label}
     </label>
@@ -406,128 +405,110 @@ const InputGroup = ({ label, value, onChange, type = "currency", icon: Icon }: a
         value={formatInputDisplay(value)}
         onChange={(e) => onChange(parseInputToNumber(e.target.value))}
         placeholder="add value"
-        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono shadow-sm placeholder:text-slate-300"
+        className="w-full bg-white border border-slate-200 rounded px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-blue-500 transition-all font-mono shadow-sm placeholder:text-slate-300"
       />
-      <span className="absolute right-3 top-2 text-xs text-slate-400">
-        {type === "currency" ? "€" : type === "usd" ? "$" : type === "pct" ? "%" : type === "units" ? "Un" : ""}
-      </span>
     </div>
   </div>
 );
 
 const AssetRow = ({ asset, onChange, onRemove }: { asset: Asset, onChange: (a: Asset) => void, onRemove: () => void }) => (
-  <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 shadow-sm group hover:border-blue-300 transition-colors">
-    <div className="mb-3">
-      <div className="flex justify-between items-center mb-1">
-        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Asset Name</label>
-        <button onClick={onRemove} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Remove Asset">
-          <Trash2 size={14} />
-        </button>
-      </div>
+  <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm hover:border-blue-300 transition-colors">
+    <div className="mb-2 flex items-center justify-between">
       <input 
         type="text" 
         value={asset.name} 
         onChange={(e) => onChange({ ...asset, name: e.target.value })}
-        className="w-full bg-white border border-slate-300 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 shadow-sm"
-        placeholder="e.g. Main House"
+        className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none placeholder:text-slate-300 w-full"
+        placeholder="Asset Name"
       />
+      <button onClick={onRemove} className="text-slate-400 hover:text-red-500 transition-colors">
+        <Trash2 size={14} />
+      </button>
     </div>
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2 mb-2">
       <div>
-        <label className="text-[10px] text-slate-400 uppercase font-medium mb-1 block">Value (Jan 1)</label>
-        <div className="relative">
-          <input 
-            type="text" 
-            inputMode="decimal"
-            value={formatInputDisplay(asset.valueSoY)}
-            onChange={(e) => onChange({ ...asset, valueSoY: parseInputToNumber(e.target.value) })}
-            className="w-full text-xs p-2 bg-white border border-slate-200 rounded focus:outline-none focus:border-blue-500 placeholder:text-slate-300" 
-            placeholder="0"
-          />
-          <span className="absolute right-2 top-1.5 text-xs text-slate-400">€</span>
-        </div>
+        <label className="text-[10px] text-slate-400 uppercase font-bold">Value (Jan 1)</label>
+        <input 
+          type="text" 
+          inputMode="decimal"
+          value={formatInputDisplay(asset.valueSoY)}
+          onChange={(e) => onChange({ ...asset, valueSoY: parseInputToNumber(e.target.value) })}
+          className="w-full text-xs p-1 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-blue-500" 
+          placeholder="0"
+        />
       </div>
       <div>
-        <label className="text-[10px] text-slate-400 uppercase font-medium mb-1 block">Growth %</label>
-        <div className="relative">
-          <input 
-            type="text"
-            inputMode="decimal"
-            value={formatInputDisplay(asset.expectedGrowthPct)}
-            onChange={(e) => onChange({ ...asset, expectedGrowthPct: parseInputToNumber(e.target.value) })}
-            className="w-full text-xs p-2 bg-white border border-slate-200 rounded focus:outline-none focus:border-blue-500" 
-            placeholder="0"
-          />
-          <span className="absolute right-2 top-1.5 text-xs text-slate-400">%</span>
-        </div>
+        <label className="text-[10px] text-slate-400 uppercase font-bold">Growth %</label>
+        <input 
+          type="text"
+          inputMode="decimal"
+          value={formatInputDisplay(asset.expectedGrowthPct)}
+          onChange={(e) => onChange({ ...asset, expectedGrowthPct: parseInputToNumber(e.target.value) })}
+          className="w-full text-xs p-1 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-blue-500" 
+          placeholder="0"
+        />
       </div>
     </div>
-    <div className="mt-2">
-      <label className="text-[10px] text-slate-400 uppercase font-medium mb-1 block">Category</label>
-      <select 
-        value={asset.category}
-        onChange={(e) => onChange({ ...asset, category: e.target.value as any })}
-        className="w-full text-xs p-2 bg-white border border-slate-200 rounded text-slate-600 focus:outline-none focus:border-blue-500"
-      >
-        <option value="Real Estate">Real Estate</option>
-        <option value="ETF/Stocks">ETF/Stocks</option>
-        <option value="Crypto">Crypto</option>
-        <option value="Private Equity">Private Equity</option>
-        <option value="Cash/Liquidity">Cash/Liquidity</option>
-        <option value="Pension">Pension</option>
-      </select>
-    </div>
+    <select 
+      value={asset.category}
+      onChange={(e) => onChange({ ...asset, category: e.target.value as any })}
+      className="w-full text-xs p-1 bg-slate-50 border border-slate-200 rounded text-slate-600 focus:outline-none focus:border-blue-500"
+    >
+      <option value="Real Estate">Real Estate</option>
+      <option value="ETF/Stocks">ETF/Stocks</option>
+      <option value="Crypto">Crypto</option>
+      <option value="Private Equity">Private Equity</option>
+      <option value="Cash/Liquidity">Cash/Liquidity</option>
+      <option value="Pension">Pension</option>
+    </select>
   </div>
 );
 
-const Card = ({ title, value, subtext, icon: Icon, alert = false, highlight = false, secondary = false, neutral = false }: any) => (
-  <div className={`px-4 py-3 rounded-xl border transition-all duration-300 shadow-sm flex flex-col justify-between min-h-[100px] ${
-    alert ? 'bg-amber-50 border-amber-200 text-amber-900' : 
-    highlight ? 'bg-emerald-50 border-emerald-100 text-slate-900' : 
-    secondary ? 'bg-rose-50 border-rose-100 text-slate-900' : 
-    neutral ? 'bg-slate-50 border-slate-200 text-slate-900' :
-    'bg-white border-slate-200 text-slate-800'
+const KPICard = ({ title, value, subtext, icon: Icon, alert = false, highlight = false, secondary = false, neutral = false }: any) => (
+  <div className={`p-4 rounded-xl border-l-4 shadow-sm mb-3 transition-all ${
+    alert ? 'bg-amber-50 border-amber-400' : 
+    highlight ? 'bg-emerald-50 border-emerald-400' : 
+    secondary ? 'bg-rose-50 border-rose-400' : 
+    neutral ? 'bg-white border-slate-300' :
+    'bg-white border-blue-400'
   }`}>
-    <div className="flex justify-between items-start">
-      <div>
-        <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${secondary ? 'text-rose-700/70' : alert ? 'text-amber-700/70' : 'text-slate-500'}`}>{title}</p>
-        <h3 className="text-2xl font-bold tracking-tight tabular-nums leading-none">{value}</h3>
-      </div>
-      <div className={`p-1.5 rounded-lg ${
-        alert ? 'bg-amber-100/50 text-amber-600' : 
-        highlight ? 'bg-emerald-100/50 text-emerald-600' : 
-        secondary ? 'bg-rose-100/50 text-rose-600' : 
-        neutral ? 'bg-slate-200/50 text-slate-600' :
-        'bg-slate-100 text-slate-400'
-      }`}>
-        <Icon size={16} />
-      </div>
+    <div className="flex justify-between items-start mb-1">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
+      {Icon && <Icon size={14} className="text-slate-400" />}
     </div>
-    {subtext && <p className={`text-[11px] mt-2 font-medium ${alert ? 'text-amber-800/60' : secondary ? 'text-rose-800/60' : highlight ? 'text-emerald-900/40' : 'text-slate-400'}`}>{subtext}</p>}
+    <h3 className="text-xl font-bold tracking-tight text-slate-800 tabular-nums">{value}</h3>
+    {subtext && <p className="text-[10px] text-slate-400 mt-1">{subtext}</p>}
   </div>
 );
 
 const ToggleControl = ({ label, checked, onChange }: any) => (
-  <div className="flex items-center justify-between mb-4 p-2 bg-slate-50 rounded-lg border border-slate-200">
-    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</span>
+  <div className="flex items-center justify-between mb-2 p-2 bg-slate-50 rounded border border-slate-200">
+    <span className="text-[10px] font-bold text-slate-500 uppercase">{label}</span>
     <button 
       onClick={() => onChange(!checked)}
-      className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${checked ? 'bg-emerald-500' : 'bg-slate-300'}`}
+      className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${checked ? 'bg-emerald-500' : 'bg-slate-300'}`}
     >
-      <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+      <div className={`bg-white w-3 h-3 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
     </button>
+  </div>
+);
+
+const SectionHeader = ({ title }: { title: string }) => (
+  <div className="flex items-center gap-2 mb-4 mt-6 first:mt-0 pb-2 border-b border-slate-100">
+    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</h3>
   </div>
 );
 
 // --- Main Application ---
 
 export default function FinanceDashboard() {
+  const [isConfigOpen, setIsConfigOpen] = useState(true);
+  
   const [state, setState] = useState<AppState>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('finance_dashboard_2026_v17');
+      const saved = localStorage.getItem('finance_dashboard_2026_v22');
       if (saved) {
         try { 
-          // Merge default state to ensure new 'adjustments' field exists if loading old data
           const parsed = JSON.parse(saved);
           return { ...DEFAULT_STATE, ...parsed, adjustments: parsed.adjustments || DEFAULT_STATE.adjustments }; 
         } catch (e) { console.error(e); }
@@ -537,7 +518,7 @@ export default function FinanceDashboard() {
   });
 
   useEffect(() => {
-    localStorage.setItem('finance_dashboard_2026_v17', JSON.stringify(state));
+    localStorage.setItem('finance_dashboard_2026_v22', JSON.stringify(state));
   }, [state]);
 
   // Engines
@@ -605,7 +586,6 @@ export default function FinanceDashboard() {
     setState(prev => ({ ...prev, portfolio: prev.portfolio.filter(p => p.id !== id) }));
   };
 
-  // Adjustment Handlers
   const handleAdjustmentChange = (type: 'income' | 'expenses', index: number, value: number) => {
     setState(prev => {
       const newAdj = [...prev.adjustments[type]];
@@ -615,225 +595,313 @@ export default function FinanceDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100">
-      <style>{`
-        @media print {
-          aside, button, .no-print { display: none !important; }
-          main { width: 100% !important; padding: 0 !important; overflow: visible !important; }
-          .print-full-width { grid-column: span 3 !important; }
-          body { background: white; -webkit-print-color-adjust: exact; }
-        }
-      `}</style>
-
-      <div className="flex flex-col lg:flex-row min-h-screen">
-        
-        {/* --- Sidebar --- */}
-        <aside className="w-full lg:w-96 bg-white border-r border-slate-200 flex flex-col lg:h-screen lg:sticky top-0 lg:overflow-y-auto z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="text-blue-600" />
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">FinPlan 2026</h1>
-            </div>
-            <p className="text-xs text-slate-400 uppercase tracking-widest">Milan HQ • Family Office</p>
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 flex flex-col lg:flex-row">
+      
+      {/* --- LEFT SIDEBAR: SCOREBOARD (KPIs) --- */}
+      <aside className="w-full lg:w-80 bg-slate-50 border-r border-slate-200 flex flex-col lg:h-screen lg:sticky top-0 lg:overflow-y-auto z-20">
+        <div className="p-6 pb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <LayoutDashboard className="text-blue-600" />
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">FinFamily 2026</h1>
           </div>
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Scoreboard</p>
+        </div>
 
-          <div className="px-6 pt-4 pb-0">
-            <div className="flex p-1 bg-slate-100 rounded-lg">
-              <button onClick={() => setState(s => ({ ...s, activeTab: 'cashflow' }))} className={`flex-1 text-[10px] font-bold py-2 rounded-md transition-all ${state.activeTab === 'cashflow' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>CASH FLOW</button>
-              <button onClick={() => setState(s => ({ ...s, activeTab: 'networth' }))} className={`flex-1 text-[10px] font-bold py-2 rounded-md transition-all ${state.activeTab === 'networth' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>ASSETS</button>
-              <button onClick={() => setState(s => ({ ...s, activeTab: 'investments' }))} className={`flex-1 text-[10px] font-bold py-2 rounded-md transition-all ${state.activeTab === 'investments' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>PORTFOLIO</button>
-            </div>
+        {/* Navigation */}
+        <div className="px-6 mb-6">
+          <div className="flex p-1 bg-white rounded-lg border border-slate-200 shadow-sm">
+            <button onClick={() => setState(s => ({ ...s, activeTab: 'cashflow' }))} className={`flex-1 text-[10px] font-bold py-2 rounded transition-all ${state.activeTab === 'cashflow' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}>CASH FLOW</button>
+            <button onClick={() => setState(s => ({ ...s, activeTab: 'networth' }))} className={`flex-1 text-[10px] font-bold py-2 rounded transition-all ${state.activeTab === 'networth' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}>ASSETS</button>
+            <button onClick={() => setState(s => ({ ...s, activeTab: 'investments' }))} className={`flex-1 text-[10px] font-bold py-2 rounded transition-all ${state.activeTab === 'investments' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}>PORTFOLIO</button>
           </div>
+        </div>
 
+        {/* Dynamic KPI Cards List */}
+        <div className="flex-1 px-6 space-y-2 overflow-y-auto">
           {state.activeTab === 'cashflow' && (
-            <div className="p-6 space-y-2 flex-1 animate-in slide-in-from-left-4 duration-300">
-              {/* Cash Flow Inputs */}
-              <div className="bg-emerald-50/50 -mx-6 px-6 py-4 mb-6 border-y border-emerald-100/50">
-                <h3 className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-4">Inflow Engines</h3>
-                <InputGroup label="Salary (Annual Gross)" value={state.income.baseSalaryGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, baseSalaryGross: val } }))} />
-                <InputGroup label="Bonus (Annual Gross)" value={state.income.variableBonusGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, variableBonusGross: val } }))} />
-                <div className="mt-6 pt-4 border-t border-emerald-200/50"></div>
-                <h4 className="text-[10px] font-bold text-emerald-800/70 uppercase tracking-widest mb-3">Equity</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <InputGroup label="Stock Quantity" type="units" value={state.equity.annualUnits} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, annualUnits: val } }))} />
-                  <InputGroup label="Stock Price" type="usd" value={state.equity.stockPriceUSD} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, stockPriceUSD: val } }))} />
-                </div>
-                <ToggleControl label="Sell On Vest (Cash Flow)" checked={state.equity.sellOnVest} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, sellOnVest: val } }))} />
-                <ToggleControl label="Include in Savings KPI" checked={state.equity.includeInSavingsRate} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, includeInSavingsRate: val } }))} />
-                <div className="mt-6 pt-4 border-t border-emerald-200/50"></div>
-                <div className="flex justify-between items-center mb-2">
-                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Additional Income</span>
-                   <ToggleControl label="" checked={state.consultancy.isActive} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, isActive: val } }))} />
-                </div>
-                {state.consultancy.isActive && (
-                  <>
-                    <InputGroup label="Gross Monthly" value={state.consultancy.grossMonthly} onChange={(val: number) => setState(s => ({ ...s, consultancy: { ...s.consultancy, grossMonthly: val } }))} />
-                    <ToggleControl label="Skip August" checked={state.consultancy.skipAugust} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, skipAugust: val } }))} />
-                  </>
-                )}
-              </div>
-              <div className="bg-rose-100/40 -mx-6 px-6 py-4 border-y border-rose-200/50">
-                <h3 className="text-xs font-bold text-rose-800 uppercase tracking-widest mb-4">Monthly Outflow Engines</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <InputGroup label="Mortgage" icon={Home} value={state.expenses.mortgage} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, mortgage: v}}))} />
-                  <InputGroup label="Utilities" value={state.expenses.utilities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, utilities: v}}))} />
-                  <InputGroup label="Groceries" value={state.expenses.groceries} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, groceries: v}}))} />
-                  <InputGroup label="Transport" icon={Car} value={state.expenses.transport} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, transport: v}}))} />
-                  <InputGroup label="Housekeeping" icon={Users} value={state.expenses.houseHelp} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseHelp: v}}))} />
-                  <InputGroup label="Medical" icon={Heart} value={state.expenses.healthcare} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, healthcare: v}}))} />
-                  <InputGroup label="Shopping" icon={ShoppingBag} value={state.expenses.shopping} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, shopping: v}}))} />
-                  <InputGroup label="Sport" icon={Trophy} value={state.expenses.sport} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, sport: v}}))} />
-                  <InputGroup label="House" icon={Wrench} value={state.expenses.houseMaintenance} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseMaintenance: v}}))} />
-                  <InputGroup label="Dining/Fun" icon={Utensils} value={state.expenses.dining} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, dining: v}}))} />
-                  <InputGroup label="Education" icon={GraduationCap} value={state.expenses.education} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, education: v}}))} />
-                  <InputGroup label="Various" icon={Layers} value={state.expenses.various} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, various: v}}))} />
-                </div>
-                <div className="mt-4 pt-4 border-t border-rose-200/50"></div>
-                <h4 className="text-[10px] font-bold text-rose-800/70 uppercase tracking-widest mb-3">Travel</h4>
-                <div className="grid grid-cols-1 gap-2">
-                  <InputGroup label="Easter (Apr)" icon={Plane} value={state.expenses.vacationEaster} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationEaster: v}}))} />
-                  <InputGroup label="Summer (Jul+Aug)" icon={Plane} value={state.expenses.vacationSummer} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationSummer: v}}))} />
-                  <InputGroup label="Xmas (Dec)" icon={Plane} value={state.expenses.vacationXmas} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationXmas: v}}))} />
-                </div>
-              </div>
-            </div>
+            <>
+              {/* --- GROUP 1: ANNUAL CASH FLOW --- */}
+              <KPICard title="Annual Cash In" value={formatCurrency(cashFlowTotals.totalCashIncome)} subtext="Salary + Bonus + Extra (No Equity)" icon={Briefcase} highlight={true} />
+              <KPICard title="Annual Cash Out" value={formatCurrency(cashFlowTotals.totalExpenses)} subtext="Total Burn" icon={CreditCard} secondary={true} />
+              <KPICard title="Annual Cash Saving" value={formatCurrency(cashFlowTotals.netLiquidity)} subtext="Net Flow (No Equity)" icon={Wallet} highlight={true} />
+              
+              <div className="border-t border-slate-200 my-4"></div>
+              
+              {/* --- GROUP 2: MONTHLY & RATIOS --- */}
+              <KPICard title="Avg Monthly In" value={formatCurrency(cashFlowTotals.totalCashIncome / 12)} icon={ArrowRight} highlight={true} />
+              <KPICard title="Avg Monthly Out" value={formatCurrency(cashFlowTotals.totalExpenses / 12)} icon={ArrowRight} secondary={true} />
+              <KPICard title={state.equity.includeInSavingsRate ? "Total Savings Rate" : "Cash Savings Rate"} value={`${cashFlowTotals.dynamicSavingsRate.toFixed(1)}%`} subtext="Efficiency Ratio" icon={TrendingUp} />
+
+              <div className="border-t border-slate-200 my-4"></div>
+
+              {/* --- GROUP 3: EQUITY --- */}
+              <KPICard title="Equity Value" value={formatCurrency(totalEquityValue)} subtext="Gross Equity Value accumulated annually" icon={DollarSign} neutral={true} />
+
+              <div className="border-t border-slate-200 my-4"></div>
+
+              {/* --- GROUP 4: TAX --- */}
+              {state.consultancy.isActive && (
+                <KPICard title="Tax Trap" value={formatCurrency(cashFlowTotals.taxDebt)} subtext="Set Aside for Taxes" icon={AlertTriangle} alert={cashFlowTotals.taxDebt > 1000} />
+              )}
+            </>
           )}
 
           {state.activeTab === 'networth' && (
-            <div className="p-6 flex-1 animate-in slide-in-from-right-4 duration-300">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Asset Inventory (SoY)</h3>
-                <button onClick={handleAddAsset} className="text-xs flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100">
-                  <Plus size={12} /> Add
-                </button>
-              </div>
-              <div className="space-y-4">
-                {state.assets.map(asset => (
-                  <AssetRow 
-                    key={asset.id} 
-                    asset={asset} 
-                    onChange={handleUpdateAsset} 
-                    onRemove={() => handleRemoveAsset(asset.id)} 
-                  />
-                ))}
-              </div>
-            </div>
+            <>
+              <KPICard title="Start of Year" value={formatCompact(netWorthTotals.totalSoY)} subtext="Jan 1 Assets" icon={Landmark} neutral={true} />
+              <KPICard title="End of Year" value={formatCompact(netWorthTotals.totalEoY)} subtext="Dec 31 Projection" icon={Building2} highlight={true} />
+              <div className="border-t border-slate-200 my-4"></div>
+              <KPICard title="Market Growth" value={formatCurrency(netWorthTotals.totalMarketGrowth)} subtext="Capital Gains" icon={TrendingUp} neutral={true} />
+              <KPICard title="Cash Contribution" value={formatCurrency(cashFlowTotals.netLiquidity)} subtext="From Savings" icon={Wallet} neutral={true} />
+            </>
           )}
 
           {state.activeTab === 'investments' && (
-            <div className="p-6 flex-1 animate-in slide-in-from-right-4 duration-300">
-              <div className="text-xs text-slate-500 mb-6">
-                Manage your portfolio positions. Prices are entered manually for Jan 1 (SoY) and Dec 31 (EoY) projections.
-              </div>
-            </div>
+            <>
+              <KPICard title="Market Value (EoY)" value={formatCurrency(portfolioTotals.totalValueEoY)} subtext="Projected Total" icon={BarChart3} highlight={true} />
+              <KPICard title="Total Invested" value={formatCompact(portfolioTotals.totalInvested)} subtext="Cost Basis" icon={Layers} neutral={true} />
+              <KPICard title="Unrealized P/L" value={formatCurrency(portfolioTotals.totalValueEoY - portfolioTotals.totalInvested)} subtext="Since Inception" icon={TrendingUp} alert={(portfolioTotals.totalValueEoY - portfolioTotals.totalInvested) < 0} />
+              <div className="border-t border-slate-200 my-4"></div>
+              <KPICard title="YTD Growth" value={formatCurrency(portfolioTotals.totalValueEoY - portfolioTotals.totalValueSoY)} subtext="This Year Only" icon={ArrowRight} neutral={true} />
+            </>
           )}
+        </div>
 
-          <div className="p-6 border-t border-slate-200 grid grid-cols-2 gap-2 bg-slate-50">
-            <button onClick={resetToDefaults} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm transition-all shadow-sm">
-              <RotateCcw size={14} /> Reset
+        <div className="p-6 border-t border-slate-200 grid grid-cols-2 gap-2">
+            <button onClick={resetToDefaults} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all shadow-sm">
+              <RotateCcw size={12} /> RESET
             </button>
-            <button onClick={handlePrint} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 text-sm transition-all shadow-sm">
-              <Printer size={14} /> Print / Save PDF
+            <button onClick={handlePrint} className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all shadow-sm">
+              <Printer size={12} /> PDF
             </button>
-          </div>
-        </aside>
+        </div>
+      </aside>
 
-        {/* --- Main Dashboard --- */}
-        <main className="flex-1 p-6 lg:p-12 lg:overflow-y-auto">
-          
-          <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                {state.activeTab === 'cashflow' ? 'Cash Flow Manager' : state.activeTab === 'networth' ? 'Net Worth & Assets' : 'Investment Portfolio'}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {state.activeTab === 'cashflow' 
-                  ? 'Projected cash flow based on Milan fiscal rules.' 
-                  : state.activeTab === 'networth' 
-                  ? 'Balance sheet evolution from Jan 1st to Dec 31st.'
-                  : 'Detailed tracking of your financial instruments.'}
-              </p>
-            </div>
-            <div className="no-print">
-               <span className="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">Last Update: {new Date().toLocaleDateString()}</span>
-            </div>
-          </div>
+      {/* --- MAIN AREA: WORKSPACE (Inputs & Charts) --- */}
+      <main className="flex-1 p-6 lg:p-10 lg:overflow-y-auto bg-white">
+        
+        {/* INPUT SECTION (Configuration) */}
+        <div className="mb-10 animate-in slide-in-from-bottom-4 duration-500">
+           {state.activeTab === 'cashflow' && (
+             <div className="bg-slate-50 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+               <div 
+                 className="p-6 flex items-center justify-between cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors"
+                 onClick={() => setIsConfigOpen(!isConfigOpen)}
+               >
+                 <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                   <SlidersHorizontal size={16} /> 2026 In/Out Estimations
+                 </h2>
+                 {isConfigOpen ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+               </div>
+               
+               {isConfigOpen && (
+                 <div className="p-6 pt-0 border-t border-slate-200 bg-slate-50/50">
+                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 mt-6">
+                     {/* Inflow */}
+                     <div>
+                       <SectionHeader title="Income" />
+                       <InputGroup label="Salary (Annual Gross)" value={state.income.baseSalaryGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, baseSalaryGross: val } }))} />
+                       <InputGroup label="Bonus (Annual Gross)" value={state.income.variableBonusGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, variableBonusGross: val } }))} />
+                       <div className="pt-2">
+                          <ToggleControl label="Additional Income" checked={state.consultancy.isActive} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, isActive: val } }))} />
+                          {state.consultancy.isActive && (
+                            <>
+                              <InputGroup label="Monthly Gross" value={state.consultancy.grossMonthly} onChange={(val: number) => setState(s => ({ ...s, consultancy: { ...s.consultancy, grossMonthly: val } }))} />
+                              <ToggleControl label="Skip August" checked={state.consultancy.skipAugust} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, skipAugust: val } }))} />
+                            </>
+                          )}
+                       </div>
+                     </div>
 
-          {state.activeTab === 'cashflow' && (
-            <div className="animate-in fade-in zoom-in-95 duration-300">
-              {/* --- CASH FLOW VIEW --- */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-8">
-                <Card title="Annual Cash In" value={formatCurrency(cashFlowTotals.totalCashIncome)} subtext="Net Salary + Bonus + Consult." icon={Briefcase} highlight={true} />
-                <Card title="Annual Costs" value={formatCurrency(cashFlowTotals.totalExpenses)} subtext="Total Annual Outflow" icon={CreditCard} secondary={true} />
-                <Card title="Cash Savings" value={formatCurrency(cashFlowTotals.netLiquidity)} subtext="Accumulated Cash (No Equity)" icon={Wallet} highlight={true} />
-                <Card title={state.equity.includeInSavingsRate ? "Total Savings Rate" : "Cash Savings Rate"} value={`${cashFlowTotals.dynamicSavingsRate.toFixed(1)}%`} subtext={state.equity.includeInSavingsRate ? "Incl. Equity" : "Excl. Equity"} icon={TrendingUp} />
-                <Card title="Equity Savings" value={formatCurrency(totalEquityValue)} subtext="Gross Asset Value (EUR)" icon={DollarSign} highlight={true} />
-                <Card title="Cash In Monthly" value={formatCurrency(cashFlowTotals.totalCashIncome / 12)} subtext="Average Monthly Net" icon={Briefcase} highlight={true} />
-                <Card title="Costs Monthly" value={formatCurrency(cashFlowTotals.totalExpenses / 12)} subtext="Average Burn Rate" icon={CreditCard} secondary={true} />
-                {state.consultancy.isActive && (
-                  <Card title="Tax Trap" value={formatCurrency(cashFlowTotals.taxDebt)} subtext="Saved for IRPEF Adj." icon={AlertTriangle} alert={cashFlowTotals.taxDebt > 1000} />
-                )}
-              </div>
+                     {/* Equity */}
+                     <div>
+                       <SectionHeader title="Equity (RSU)" />
+                       <div className="grid grid-cols-2 gap-2">
+                          <InputGroup label="Units" type="units" value={state.equity.annualUnits} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, annualUnits: val } }))} />
+                          <InputGroup label="Price ($)" type="usd" value={state.equity.stockPriceUSD} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, stockPriceUSD: val } }))} />
+                       </div>
+                       <div className="pt-2 space-y-1">
+                          <ToggleControl label="Sell On Vest" checked={state.equity.sellOnVest} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, sellOnVest: val } }))} />
+                          <ToggleControl label="Incl. in Cash Savings" checked={state.equity.includeInSavingsRate} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, includeInSavingsRate: val } }))} />
+                       </div>
+                     </div>
 
-              {/* MONTHLY ADJUSTMENTS SECTION */}
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <SlidersHorizontal size={20} className="text-slate-600" />
-                  <h3 className="text-lg font-bold text-slate-800">Monthly Actuals (Overrides)</h3>
-                </div>
-                <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-4 min-w-max">
-                    {MONTHS.map((month, index) => (
-                      <div key={month} className="w-24 shrink-0">
-                        <div className="text-xs font-bold text-center mb-2 text-slate-500 uppercase">{month}</div>
-                        <div className="space-y-2">
-                          <input 
-                            type="text"
-                            inputMode="decimal"
-                            value={formatInputDisplay(state.adjustments.income[index])}
-                            onChange={(e) => handleAdjustmentChange('income', index, parseInputToNumber(e.target.value))}
-                            placeholder="Inc"
-                            className="w-full text-xs p-2 border border-emerald-200 bg-emerald-50/30 rounded text-center focus:outline-none focus:border-emerald-500 placeholder:text-slate-300"
-                          />
-                          <input 
-                            type="text"
-                            inputMode="decimal"
-                            value={formatInputDisplay(state.adjustments.expenses[index])}
-                            onChange={(e) => handleAdjustmentChange('expenses', index, parseInputToNumber(e.target.value))}
-                            placeholder="Exp"
-                            className="w-full text-xs p-2 border border-rose-200 bg-rose-50/30 rounded text-center focus:outline-none focus:border-rose-500 placeholder:text-slate-300"
-                          />
+                     {/* Outflow 1 */}
+                     <div>
+                        <SectionHeader title="Fixed & Living" />
+                        <InputGroup label="Mortgage" icon={Home} value={state.expenses.mortgage} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, mortgage: v}}))} />
+                        <InputGroup label="Utilities" value={state.expenses.utilities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, utilities: v}}))} />
+                        <InputGroup label="Groceries" value={state.expenses.groceries} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, groceries: v}}))} />
+                        <InputGroup label="Transport" icon={Car} value={state.expenses.transport} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, transport: v}}))} />
+                        <InputGroup label="Housekeeping" icon={Users} value={state.expenses.houseHelp} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseHelp: v}}))} />
+                        <InputGroup label="Medical" icon={Heart} value={state.expenses.healthcare} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, healthcare: v}}))} />
+                     </div>
+
+                     {/* Outflow 2 */}
+                     <div>
+                        <SectionHeader title="Lifestyle & Kids" />
+                        <div className="grid grid-cols-2 gap-2">
+                           <InputGroup label="Shopping" icon={ShoppingBag} value={state.expenses.shopping} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, shopping: v}}))} />
+                           <InputGroup label="Dining" icon={Utensils} value={state.expenses.dining} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, dining: v}}))} />
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                        <InputGroup label="Education" icon={GraduationCap} value={state.expenses.education} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, education: v}}))} />
+                        <InputGroup label="Activities" icon={Trophy} value={state.expenses.activities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, activities: v}}))} />
+                        <InputGroup label="Various" icon={Layers} value={state.expenses.various} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, various: v}}))} />
+                        
+                        <div className="mt-4"></div>
+                        <SectionHeader title="Travel" />
+                        <div className="grid grid-cols-3 gap-2">
+                           <InputGroup label="Easter" value={state.expenses.vacationEaster} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationEaster: v}}))} />
+                           <InputGroup label="Summer" value={state.expenses.vacationSummer} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationSummer: v}}))} />
+                           <InputGroup label="Xmas" value={state.expenses.vacationXmas} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationXmas: v}}))} />
+                        </div>
+                     </div>
+                   </div>
+                 </div>
+               )}
+             </div>
+           )}
 
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-10">
-                <div className="xl:col-span-2 bg-white border border-slate-200 rounded-xl p-6 shadow-sm print-full-width">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold text-slate-800">Cash Flow Waves</h3>
-                    <div className="flex gap-4 text-xs">
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Income</div>
-                    </div>
+           {state.activeTab === 'networth' && (
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 shadow-sm">
+                 <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                       <Building2 size={16} /> Asset Inventory
+                    </h2>
+                    <button onClick={handleAddAsset} className="text-xs flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 shadow-sm transition-all">
+                       <Plus size={14} /> Add Asset
+                    </button>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {state.assets.map(asset => (
+                       <AssetRow key={asset.id} asset={asset} onChange={handleUpdateAsset} onRemove={() => handleRemoveAsset(asset.id)} />
+                    ))}
+                 </div>
+              </div>
+           )}
+
+            {state.activeTab === 'investments' && (
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 shadow-sm">
+                 <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                       <Coins size={16} /> Portfolio Holdings
+                    </h2>
+                    <button onClick={handleAddPortfolioItem} className="text-xs flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 shadow-sm transition-all">
+                       <Plus size={14} /> Add Holding
+                    </button>
+                 </div>
+                 {/* This section's inputs are the table rows below, so we keep it simple here */}
+                 <p className="text-xs text-slate-500">
+                    Enter your positions in the table below to calculate YTD performance and Total P/L.
+                 </p>
+              </div>
+           )}
+        </div>
+
+        {/* OUTPUT SECTION (Charts & Tables) */}
+        <div>
+           {state.activeTab === 'cashflow' && (
+             <div className="space-y-8">
+               
+               {/* Monthly Ledger Table - Moved Above Charts */}
+               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Edit3 size={18} className="text-blue-600" />
+                    <h3 className="text-lg font-bold text-slate-800">Actual Cash Flow (monthly ledger)</h3>
                   </div>
-                  <div className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={projection} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val / 1000}k`} />
-                        <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontSize: '12px', fontWeight: 600 }} formatter={(value: any) => formatCurrency(value)} />
-                        <ReferenceLine y={0} stroke="#cbd5e1" />
-                        <Line type="monotone" dataKey="totalIncome" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 0 }} activeDot={{ r: 6 }} />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <span className="text-xs text-slate-400 font-medium bg-white px-2 py-1 rounded border border-slate-200">
+                    Edit cells to override forecasts
+                  </span>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-800 mb-6">Cost Breakdown</h3>
-                  <div className="h-[350px]">
+                 <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left text-slate-600">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-500">
+                      <tr>
+                        <th className="px-4 py-4 w-24">Month</th>
+                        <th className="px-4 py-4 w-40 text-emerald-700">Cash In (Actual)</th>
+                        <th className="px-4 py-4 w-40 text-rose-700">Cash Out (Actual)</th>
+                        <th className="px-4 py-4 text-emerald-600/70 text-right hidden md:table-cell">Est. In</th>
+                        <th className="px-4 py-4 text-rose-600/70 text-right hidden md:table-cell">Est. Out</th>
+                        <th className="px-4 py-4 text-blue-600 text-right">Net Flow</th>
+                        <th className="px-4 py-4 text-amber-600 text-right">Tax Trap</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {projection.map((row, i) => (
+                        <tr key={i} className={`hover:bg-slate-50 transition-colors ${row.adjIncome > 0 || row.adjExpense > 0 ? 'bg-blue-50/30' : ''}`}>
+                          <td className="px-4 py-3 font-bold text-slate-800">{row.name}</td>
+                          
+                          {/* INCOME INPUT */}
+                          <td className="px-4 py-2">
+                            <div className="relative">
+                              <input 
+                                type="text"
+                                inputMode="decimal"
+                                value={formatInputDisplay(row.adjIncome)}
+                                onChange={(e) => handleAdjustmentChange('income', i, parseInputToNumber(e.target.value))}
+                                className={`w-full text-right p-2 rounded border shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono font-bold placeholder:text-slate-500 ${
+                                  row.adjIncome > 0 
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                    : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-400'
+                                }`}
+                                placeholder={formatCompact(row.forecastIncome)}
+                              />
+                            </div>
+                          </td>
+
+                          {/* EXPENSE INPUT */}
+                          <td className="px-4 py-2">
+                            <div className="relative">
+                              <input 
+                                type="text"
+                                inputMode="decimal"
+                                value={formatInputDisplay(row.adjExpense)}
+                                onChange={(e) => handleAdjustmentChange('expenses', i, parseInputToNumber(e.target.value))}
+                                className={`w-full text-right p-2 rounded border shadow-sm focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all font-mono font-bold placeholder:text-slate-500 ${
+                                  row.adjExpense > 0 
+                                    ? 'bg-rose-50 border-rose-200 text-rose-700' 
+                                    : 'bg-white border-slate-300 text-slate-700 hover:border-rose-400'
+                                }`}
+                                placeholder={formatCompact(row.forecastExpenses)}
+                              />
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3 text-right font-mono text-xs text-slate-400 hidden md:table-cell">{formatCompact(row.forecastIncome)}</td>
+                          <td className="px-4 py-3 text-right font-mono text-xs text-slate-400 hidden md:table-cell">{formatCompact(row.forecastExpenses)}</td>
+                          
+                          <td className={`px-4 py-3 text-right font-mono font-bold ${row.netFlow > 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                            {formatCurrency(row.netFlow)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-amber-600">
+                            {row.taxDebtAccrual > 0 ? formatCurrency(row.taxDebtAccrual) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+               </div>
+
+               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                 <div className="xl:col-span-2 bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-[400px]">
+                   <h3 className="text-lg font-bold text-slate-800 mb-4">Cash Flow Waves</h3>
+                   <ResponsiveContainer width="100%" height="100%">
+                     <ComposedChart data={projection} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val/1000}k`} />
+                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(val: any) => formatCurrency(val)} />
+                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                        <Bar dataKey="totalIncome" name="Cash In" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+                        <Bar dataKey="expenses" name="Cash Out" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={20} />
+                        <Line type="monotone" dataKey="netFlow" name="Net Flow" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />
+                     </ComposedChart>
+                   </ResponsiveContainer>
+                 </div>
+                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-[400px]">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4">Cost Breakdown</h3>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={cashFlowTotals.pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
@@ -845,222 +913,104 @@ export default function FinanceDashboard() {
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>
+                 </div>
+               </div>
+             </div>
+           )}
+
+           {state.activeTab === 'networth' && (
+             <div className="space-y-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-[400px]">
+                     <h3 className="text-lg font-bold text-slate-800 mb-4">Wealth Bridge (SoY → EoY)</h3>
+                     <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={netWorthTotals.bridgeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                          <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val/1000}k`} />
+                          <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value: any) => formatCurrency(value)} />
+                          <Bar dataKey="change" stackId="a" fill="#3b82f6">
+                            {netWorthTotals.bridgeData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                          <Bar dataKey="start" stackId="a" fill="transparent" />
+                        </BarChart>
+                     </ResponsiveContainer>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-[400px]">
+                     <h3 className="text-lg font-bold text-slate-800 mb-4">Asset Allocation</h3>
+                     <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={netWorthTotals.allocationData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                            {netWorthTotals.allocationData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={ASSET_COLORS[entry.name as keyof typeof ASSET_COLORS] || '#94a3b8'} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                          <Legend />
+                        </PieChart>
+                     </ResponsiveContainer>
                   </div>
                 </div>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-10 shadow-sm print-full-width">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                  <h3 className="text-lg font-bold text-slate-800">Monthly Breakdown</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left text-slate-600">
-                    <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
-                      <tr>
-                        <th className="px-6 py-4 font-bold">Month</th>
-                        <th className="px-6 py-4 font-bold text-emerald-600">Income</th>
-                        <th className="px-6 py-4 font-bold text-emerald-800/60">Equity (Gross)</th>
-                        <th className="px-6 py-4 font-bold text-slate-500">Actual In</th>
-                        <th className="px-6 py-4 font-bold text-rose-600">Expenses</th>
-                        <th className="px-6 py-4 font-bold text-slate-500">Actual Out</th>
-                        <th className="px-6 py-4 font-bold text-blue-600">Net Flow</th>
-                        <th className="px-6 py-4 font-bold text-amber-600">Tax Debt</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {projection.map((row, i) => (
-                        <tr key={i} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4 font-medium text-slate-900">{row.name}</td>
-                          <td className="px-6 py-4 text-emerald-600 font-mono font-medium">{formatCurrency(row.totalIncome)}</td>
-                          <td className="px-6 py-4 text-emerald-800/60 font-mono">{formatCurrency(row.vestedValueEUR)}</td>
-                          <td className="px-6 py-4 text-slate-500 font-mono">{row.adjIncome !== 0 ? formatCurrency(row.adjIncome) : '-'}</td>
-                          <td className="px-6 py-4 text-rose-600 font-mono font-medium">{formatCurrency(row.expenses)}</td>
-                          <td className="px-6 py-4 text-slate-500 font-mono">{row.adjExpense !== 0 ? formatCurrency(row.adjExpense) : '-'}</td>
-                          <td className={`px-6 py-4 font-mono font-bold ${row.netFlow > 0 ? 'text-slate-700' : 'text-rose-600'}`}>
-                            {formatCurrency(row.netFlow)}
-                          </td>
-                          <td className="px-6 py-4 text-amber-600 font-mono">
-                            {row.taxDebtAccrual > 0 ? formatCurrency(row.taxDebtAccrual) : '-'}
-                          </td>
+             </div>
+           )}
+
+           {state.activeTab === 'investments' && (
+             <div className="space-y-8">
+               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-slate-600">
+                      <thead className="bg-slate-50 border-b border-slate-100 text-xs uppercase font-bold text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Ticker / Name</th>
+                          <th className="px-4 py-3">Type</th>
+                          <th className="px-4 py-3 text-right">Qty</th>
+                          <th className="px-4 py-3 text-right">Avg Price</th>
+                          <th className="px-4 py-3 text-right">Price Jan 1</th>
+                          <th className="px-4 py-3 text-right">Price Dec 31</th>
+                          <th className="px-4 py-3 text-right">Value (EoY)</th>
+                          <th className="px-4 py-3 text-right">Total P/L</th>
+                          <th className="px-4 py-3 text-center">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {state.activeTab === 'networth' && (
-            <div className="animate-in fade-in zoom-in-95 duration-300">
-              {/* --- NET WORTH VIEW --- */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-                <Card title="Start of Year" value={formatCompact(netWorthTotals.totalSoY)} subtext="Jan 1st Assets" icon={Landmark} neutral={true} />
-                <Card title="+ Capital Gain" value={formatCurrency(netWorthTotals.totalMarketGrowth)} subtext="Market Growth" icon={TrendingUp} highlight={true} />
-                <Card title="+ Cash Savings" value={formatCurrency(cashFlowTotals.netLiquidity)} subtext="From Cash Flow Tab" icon={Wallet} highlight={true} />
-                <Card title="End of Year" value={formatCompact(netWorthTotals.totalEoY)} subtext="Dec 31st Projection" icon={Building2} neutral={true} />
-              </div>
-
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-10">
-                <div className="xl:col-span-2 bg-white border border-slate-200 rounded-xl p-6 shadow-sm print-full-width">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold text-slate-800">Wealth Bridge (SoY → EoY)</h3>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {portfolioTotals.items.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-2">
+                              <input type="text" value={item.ticker} onChange={(e) => handleUpdatePortfolioItem({ ...item, ticker: e.target.value })} className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-700 focus:outline-none focus:border-blue-500" />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select value={item.type} onChange={(e) => handleUpdatePortfolioItem({ ...item, type: e.target.value as any })} className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:border-blue-500">
+                                <option value="Stock">Stock</option>
+                                <option value="ETF">ETF</option>
+                                <option value="Crypto">Crypto</option>
+                                <option value="Fund">Fund</option>
+                                <option value="Bond">Bond</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-2 text-right"><input type="text" inputMode="decimal" value={formatInputDisplay(item.quantity)} onChange={(e) => handleUpdatePortfolioItem({ ...item, quantity: parseInputToNumber(e.target.value) })} className="w-20 bg-white border border-slate-200 rounded px-2 py-1 text-right text-sm focus:outline-none focus:border-blue-500" /></td>
+                            <td className="px-4 py-2 text-right"><input type="text" inputMode="decimal" value={formatInputDisplay(item.avgPrice)} onChange={(e) => handleUpdatePortfolioItem({ ...item, avgPrice: parseInputToNumber(e.target.value) })} className="w-24 bg-white border border-slate-200 rounded px-2 py-1 text-right text-sm focus:outline-none focus:border-blue-500" /></td>
+                            <td className="px-4 py-2 text-right"><input type="text" inputMode="decimal" value={formatInputDisplay(item.priceSoY)} onChange={(e) => handleUpdatePortfolioItem({ ...item, priceSoY: parseInputToNumber(e.target.value) })} className="w-24 bg-white border border-slate-200 rounded px-2 py-1 text-right text-sm text-slate-500 focus:outline-none focus:border-blue-500" /></td>
+                            <td className="px-4 py-2 text-right"><input type="text" inputMode="decimal" value={formatInputDisplay(item.priceEoY)} onChange={(e) => handleUpdatePortfolioItem({ ...item, priceEoY: parseInputToNumber(e.target.value) })} className="w-24 bg-white border border-slate-200 rounded px-2 py-1 text-right text-sm font-bold text-slate-700 focus:outline-none focus:border-blue-500" /></td>
+                            <td className="px-4 py-2 text-right font-mono">{formatCurrency(item.valueEoY)}</td>
+                            <td className={`px-4 py-2 text-right font-mono text-xs ${item.plTotal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              <div>{formatCurrency(item.plTotal)}</div>
+                              <div>{item.plTotalPct.toFixed(2)}%</div>
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              <button onClick={() => handleRemovePortfolioItem(item.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={netWorthTotals.bridgeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val / 1000}k`} />
-                        <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '8px' }} formatter={(value: any) => formatCurrency(value)} />
-                        <Bar dataKey="change" stackId="a" fill="#3b82f6">
-                          {netWorthTotals.bridgeData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                        <Bar dataKey="start" stackId="a" fill="transparent" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-800 mb-6">EoY Allocation</h3>
-                  <div className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={netWorthTotals.allocationData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                          {netWorthTotals.allocationData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={ASSET_COLORS[entry.name as keyof typeof ASSET_COLORS] || '#94a3b8'} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+               </div>
 
-          {state.activeTab === 'investments' && (
-            <div className="animate-in fade-in zoom-in-95 duration-300">
-              {/* --- INVESTMENTS VIEW --- */}
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-800">Portfolio Holdings</h3>
-                <button onClick={handleAddPortfolioItem} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-                  <Plus size={16} /> Add Holding
-                </button>
-              </div>
-
-              {/* Portfolio KPIs */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-                <Card title="Total Invested" value={formatCompact(portfolioTotals.totalInvested)} subtext="Cost Basis" icon={Layers} neutral={true} />
-                <Card title="Market Value (EoY)" value={formatCurrency(portfolioTotals.totalValueEoY)} subtext="Projected Dec 31" icon={BarChart3} highlight={true} />
-                <Card title="Unrealized P/L" value={formatCurrency(portfolioTotals.totalValueEoY - portfolioTotals.totalInvested)} subtext="Since Inception" icon={TrendingUp} highlight={(portfolioTotals.totalValueEoY - portfolioTotals.totalInvested) >= 0} alert={(portfolioTotals.totalValueEoY - portfolioTotals.totalInvested) < 0} />
-                <Card title="YTD Performance" value={formatCurrency(portfolioTotals.totalValueEoY - portfolioTotals.totalValueSoY)} subtext="Jan 1 - Dec 31 Growth" icon={ArrowRight} neutral={true} />
-              </div>
-
-              {/* Portfolio Table */}
-              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-10 shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left text-slate-600">
-                    <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
-                      <tr>
-                        <th className="px-2 py-3 font-bold">Ticker / Name</th>
-                        <th className="px-2 py-3 font-bold">Type</th>
-                        <th className="px-2 py-3 font-bold text-right">Qty</th>
-                        <th className="px-2 py-3 font-bold text-right">Avg Price</th>
-                        <th className="px-2 py-3 font-bold text-right">Price Jan 1</th>
-                        <th className="px-2 py-3 font-bold text-right">Price Dec 31</th>
-                        <th className="px-2 py-3 font-bold text-right">Value (EoY)</th>
-                        <th className="px-2 py-3 font-bold text-right">Total P/L</th>
-                        <th className="px-2 py-3 font-bold text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {portfolioTotals.items.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
-                          <td className="px-2 py-2">
-                            <input 
-                              type="text" 
-                              value={item.ticker} 
-                              onChange={(e) => handleUpdatePortfolioItem({ ...item, ticker: e.target.value })}
-                              className="bg-transparent font-bold text-slate-700 w-full focus:outline-none focus:border-b focus:border-blue-500"
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <select 
-                              value={item.type} 
-                              onChange={(e) => handleUpdatePortfolioItem({ ...item, type: e.target.value as any })}
-                              className="bg-transparent text-slate-600 focus:outline-none text-xs"
-                            >
-                              <option value="Stock">Stock</option>
-                              <option value="ETF">ETF</option>
-                              <option value="Crypto">Crypto</option>
-                              <option value="Fund">Fund</option>
-                              <option value="Bond">Bond</option>
-                            </select>
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            <input 
-                              type="text" 
-                              inputMode="decimal"
-                              value={formatInputDisplay(item.quantity)} 
-                              onChange={(e) => handleUpdatePortfolioItem({ ...item, quantity: parseInputToNumber(e.target.value) })}
-                              className="bg-transparent text-right w-20 focus:outline-none focus:border-b focus:border-blue-500"
-                            />
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            <input 
-                              type="text" 
-                              inputMode="decimal"
-                              value={formatInputDisplay(item.avgPrice)} 
-                              onChange={(e) => handleUpdatePortfolioItem({ ...item, avgPrice: parseInputToNumber(e.target.value) })}
-                              className="bg-transparent text-right w-24 focus:outline-none focus:border-b focus:border-blue-500"
-                            />
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            <input 
-                              type="text" 
-                              inputMode="decimal"
-                              value={formatInputDisplay(item.priceSoY)} 
-                              onChange={(e) => handleUpdatePortfolioItem({ ...item, priceSoY: parseInputToNumber(e.target.value) })}
-                              className="bg-transparent text-right w-24 focus:outline-none focus:border-b focus:border-blue-500 text-slate-500"
-                            />
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            <input 
-                              type="text" 
-                              inputMode="decimal"
-                              value={formatInputDisplay(item.priceEoY)} 
-                              onChange={(e) => handleUpdatePortfolioItem({ ...item, priceEoY: parseInputToNumber(e.target.value) })}
-                              className="bg-transparent text-right w-24 focus:outline-none focus:border-b focus:border-blue-500 font-semibold text-slate-700"
-                            />
-                          </td>
-                          <td className="px-2 py-2 text-right font-mono text-slate-700">
-                            {formatCurrency(item.valueEoY)}
-                          </td>
-                          <td className={`px-2 py-2 text-right font-mono text-xs ${item.plTotal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            <div>{formatCurrency(item.plTotal)}</div>
-                            <div>{item.plTotalPct.toFixed(2)}%</div>
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            <button onClick={() => handleRemovePortfolioItem(item.id)} className="text-slate-300 hover:text-red-500 transition-colors">
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                 {/* Allocation Chart */}
-                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-800 mb-6">Portfolio Allocation</h3>
-                  <div className="h-[300px]">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-[350px]">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4">Portfolio Allocation</h3>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={portfolioTotals.allocationData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
@@ -1072,23 +1022,15 @@ export default function FinanceDashboard() {
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Performance Chart */}
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-800 mb-6">Performance View</h3>
-                  <div className="h-[300px]">
+                 </div>
+                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-[350px]">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4">Performance View</h3>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={portfolioTotals.performanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val / 1000}k`} />
-                        <Tooltip 
-                          cursor={{ fill: '#f1f5f9' }}
-                          contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '8px' }}
-                          formatter={(value: any) => formatCurrency(value)}
-                        />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `€${val/1000}k`} />
+                        <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none' }} formatter={(value: any) => formatCurrency(value)} />
                         <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                           {portfolioTotals.performanceData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -1096,14 +1038,12 @@ export default function FinanceDashboard() {
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-        </main>
-      </div>
+                 </div>
+               </div>
+             </div>
+           )}
+        </div>
+      </main>
     </div>
   );
 }
