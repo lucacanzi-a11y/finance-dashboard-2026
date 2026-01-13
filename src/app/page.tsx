@@ -6,7 +6,7 @@ import {
   ComposedChart, ReferenceLine, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import { 
-  TrendingUp, Wallet, AlertTriangle, Briefcase, 
+  TrendingUp, TrendingDown, Wallet, AlertTriangle, Briefcase, 
   Home, GraduationCap, Plane, Save, RotateCcw, Download, Upload,
   ShoppingCart, Car, Utensils, Heart, Users, Shirt, Trophy, Printer, FileText, Layers,
   CreditCard, DollarSign, Wrench, ShoppingBag, Building2, Coins, CandlestickChart, Plus, Trash2,
@@ -695,67 +695,87 @@ export default function FinanceDashboard() {
                </div>
                
                {isConfigOpen && (
-                 <div className="p-6 pt-0 border-t border-slate-200 bg-slate-50/50">
-                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 mt-6">
-                     {/* Inflow */}
-                     <div>
-                       <SectionHeader title="Income" />
-                       <InputGroup label="Salary (Annual Gross)" value={state.income.baseSalaryGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, baseSalaryGross: val } }))} />
-                       <InputGroup label="Bonus (Annual Gross)" value={state.income.variableBonusGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, variableBonusGross: val } }))} />
-                       <div className="pt-2">
-                          <ToggleControl label="Additional Income" checked={state.consultancy.isActive} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, isActive: val } }))} />
-                          {state.consultancy.isActive && (
-                            <>
-                              <InputGroup label="Monthly Gross" value={state.consultancy.grossMonthly} onChange={(val: number) => setState(s => ({ ...s, consultancy: { ...s.consultancy, grossMonthly: val } }))} />
-                              <ToggleControl label="Skip August" checked={state.consultancy.skipAugust} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, skipAugust: val } }))} />
-                            </>
-                          )}
+                 <div className="p-6 pt-0 border-t border-slate-200 bg-white">
+                   <div className="mt-6 space-y-6">
+                     
+                     {/* IN SECTION */}
+                     <div className="bg-emerald-50/40 rounded-xl border border-emerald-100 p-5">
+                       <div className="flex items-center gap-2 mb-4 text-emerald-800 border-b border-emerald-200 pb-2">
+                         <TrendingUp size={16} />
+                         <span className="text-xs font-bold uppercase tracking-widest">Cash In Estimates</span>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           {/* Income Inputs */}
+                           <div>
+                             <SectionHeader title="Salary & Bonus" />
+                             <InputGroup label="Salary (Annual Gross)" value={state.income.baseSalaryGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, baseSalaryGross: val } }))} />
+                             <InputGroup label="Bonus (Annual Gross)" value={state.income.variableBonusGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, variableBonusGross: val } }))} />
+                             <div className="pt-2">
+                                <ToggleControl label="Additional Income" checked={state.consultancy.isActive} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, isActive: val } }))} />
+                                {state.consultancy.isActive && (
+                                  <>
+                                    <InputGroup label="Monthly Gross" value={state.consultancy.grossMonthly} onChange={(val: number) => setState(s => ({ ...s, consultancy: { ...s.consultancy, grossMonthly: val } }))} />
+                                    <ToggleControl label="Skip August" checked={state.consultancy.skipAugust} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, skipAugust: val } }))} />
+                                  </>
+                                )}
+                             </div>
+                           </div>
+                           {/* Equity Inputs */}
+                           <div>
+                             <SectionHeader title="Equity (RSU)" />
+                             <div className="grid grid-cols-2 gap-2">
+                                <InputGroup label="Units" type="units" value={state.equity.annualUnits} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, annualUnits: val } }))} />
+                                <InputGroup label="Price ($)" type="usd" value={state.equity.stockPriceUSD} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, stockPriceUSD: val } }))} />
+                             </div>
+                             <div className="pt-2 space-y-1">
+                                <ToggleControl label="Sell On Vest" checked={state.equity.sellOnVest} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, sellOnVest: val } }))} />
+                                <ToggleControl label="Incl. in Cash Savings" checked={state.equity.includeInSavingsRate} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, includeInSavingsRate: val } }))} />
+                             </div>
+                           </div>
                        </div>
                      </div>
 
-                     {/* Equity */}
-                     <div>
-                       <SectionHeader title="Equity (RSU)" />
-                       <div className="grid grid-cols-2 gap-2">
-                          <InputGroup label="Units" type="units" value={state.equity.annualUnits} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, annualUnits: val } }))} />
-                          <InputGroup label="Price ($)" type="usd" value={state.equity.stockPriceUSD} onChange={(val: number) => setState(s => ({ ...s, equity: { ...s.equity, stockPriceUSD: val } }))} />
+                     {/* OUT SECTION */}
+                     <div className="bg-rose-50/40 rounded-xl border border-rose-100 p-5">
+                       <div className="flex items-center gap-2 mb-4 text-rose-800 border-b border-rose-200 pb-2">
+                          <TrendingDown size={16} />
+                          <span className="text-xs font-bold uppercase tracking-widest">Cash Out Estimates</span>
                        </div>
-                       <div className="pt-2 space-y-1">
-                          <ToggleControl label="Sell On Vest" checked={state.equity.sellOnVest} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, sellOnVest: val } }))} />
-                          <ToggleControl label="Incl. in Cash Savings" checked={state.equity.includeInSavingsRate} onChange={(val: boolean) => setState(s => ({ ...s, equity: { ...s.equity, includeInSavingsRate: val } }))} />
+
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           {/* Outflow 1 */}
+                           <div>
+                               <SectionHeader title="Fixed & Living" />
+                               <InputGroup label="Mortgage" icon={Home} value={state.expenses.mortgage} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, mortgage: v}}))} />
+                               <InputGroup label="Utilities" value={state.expenses.utilities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, utilities: v}}))} />
+                               <InputGroup label="Groceries" value={state.expenses.groceries} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, groceries: v}}))} />
+                               <InputGroup label="Transport" icon={Car} value={state.expenses.transport} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, transport: v}}))} />
+                               <InputGroup label="Housekeeping" icon={Users} value={state.expenses.houseHelp} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseHelp: v}}))} />
+                               <InputGroup label="Medical" icon={Heart} value={state.expenses.healthcare} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, healthcare: v}}))} />
+                           </div>
+                           {/* Outflow 2 */}
+                           <div>
+                               <SectionHeader title="Lifestyle & Kids" />
+                               <div className="grid grid-cols-2 gap-2">
+                                  <InputGroup label="Shopping" icon={ShoppingBag} value={state.expenses.shopping} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, shopping: v}}))} />
+                                  <InputGroup label="Dining" icon={Utensils} value={state.expenses.dining} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, dining: v}}))} />
+                               </div>
+                               <InputGroup label="Education" icon={GraduationCap} value={state.expenses.education} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, education: v}}))} />
+                               <InputGroup label="Activities" icon={Trophy} value={state.expenses.activities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, activities: v}}))} />
+                               <InputGroup label="Various" icon={Layers} value={state.expenses.various} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, various: v}}))} />
+                               
+                               <div className="mt-4"></div>
+                               <SectionHeader title="Travel" />
+                               <div className="grid grid-cols-3 gap-2">
+                                  <InputGroup label="Easter" value={state.expenses.vacationEaster} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationEaster: v}}))} />
+                                  <InputGroup label="Summer" value={state.expenses.vacationSummer} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationSummer: v}}))} />
+                                  <InputGroup label="Xmas" value={state.expenses.vacationXmas} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationXmas: v}}))} />
+                               </div>
+                           </div>
                        </div>
                      </div>
 
-                     {/* Outflow 1 */}
-                     <div>
-                        <SectionHeader title="Fixed & Living" />
-                        <InputGroup label="Mortgage" icon={Home} value={state.expenses.mortgage} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, mortgage: v}}))} />
-                        <InputGroup label="Utilities" value={state.expenses.utilities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, utilities: v}}))} />
-                        <InputGroup label="Groceries" value={state.expenses.groceries} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, groceries: v}}))} />
-                        <InputGroup label="Transport" icon={Car} value={state.expenses.transport} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, transport: v}}))} />
-                        <InputGroup label="Housekeeping" icon={Users} value={state.expenses.houseHelp} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseHelp: v}}))} />
-                        <InputGroup label="Medical" icon={Heart} value={state.expenses.healthcare} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, healthcare: v}}))} />
-                     </div>
-
-                     {/* Outflow 2 */}
-                     <div>
-                        <SectionHeader title="Lifestyle & Kids" />
-                        <div className="grid grid-cols-2 gap-2">
-                           <InputGroup label="Shopping" icon={ShoppingBag} value={state.expenses.shopping} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, shopping: v}}))} />
-                           <InputGroup label="Dining" icon={Utensils} value={state.expenses.dining} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, dining: v}}))} />
-                        </div>
-                        <InputGroup label="Education" icon={GraduationCap} value={state.expenses.education} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, education: v}}))} />
-                        <InputGroup label="Activities" icon={Trophy} value={state.expenses.activities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, activities: v}}))} />
-                        <InputGroup label="Various" icon={Layers} value={state.expenses.various} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, various: v}}))} />
-                        
-                        <div className="mt-4"></div>
-                        <SectionHeader title="Travel" />
-                        <div className="grid grid-cols-3 gap-2">
-                           <InputGroup label="Easter" value={state.expenses.vacationEaster} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationEaster: v}}))} />
-                           <InputGroup label="Summer" value={state.expenses.vacationSummer} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationSummer: v}}))} />
-                           <InputGroup label="Xmas" value={state.expenses.vacationXmas} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, vacationXmas: v}}))} />
-                        </div>
-                     </div>
                    </div>
                  </div>
                )}
