@@ -11,7 +11,7 @@ import {
   ShoppingCart, Car, Utensils, Heart, Users, Shirt, Trophy, Printer, FileText, Layers,
   CreditCard, DollarSign, Wrench, ShoppingBag, Building2, Coins, CandlestickChart, Plus, Trash2,
   Landmark, ArrowRight, PieChart as PieChartIcon, BarChart3, SlidersHorizontal, LayoutDashboard,
-  Edit3, ChevronDown, ChevronUp
+  Edit3, ChevronDown, ChevronUp, Calculator
 } from 'lucide-react';
 
 // --- Types & Interfaces ---
@@ -46,13 +46,13 @@ interface ExpenseConfig {
   transport: number;
   houseHelp: number; 
   healthcare: number;
-  various: number; 
-  
-  // Lifestyle & Kids
-  dining: number; 
   education: number; 
+  sport: number;     
+  
+  // Variable / Lifestyle
+  various: number; 
+  dining: number; 
   shopping: number; 
-  sport: number; 
   activities: number; 
   
   // Travel
@@ -123,12 +123,14 @@ const DEFAULT_STATE: AppState = {
     transport: 0,
     houseHelp: 0,
     healthcare: 0,
+    education: 0, 
+    sport: 0,   
+
     various: 0, 
     dining: 0,
-    education: 0, 
     shopping: 0, 
-    sport: 0,   
     activities: 0, 
+
     vacationEaster: 0,
     vacationSummer: 0,
     vacationXmas: 0,
@@ -256,22 +258,27 @@ const calculateCashFlow = (state: AppState) => {
       portfolioGrowth = vestedValueEUR;
     }
 
-    let monthlyExpenses = 
+    // EXPENSES SPLIT (Fixed vs Variable for Logic IV)
+    // Updated Logic based on request: Transport, Groceries, Sport -> Fixed
+    const fixedExpenses = 
       expenses.mortgage + expenses.houseMaintenance + expenses.utilities +
-      expenses.groceries + expenses.transport + expenses.houseHelp +
-      expenses.healthcare + expenses.various + expenses.dining +
-      expenses.education + expenses.shopping + expenses.sport + expenses.activities;
+      expenses.houseHelp + expenses.healthcare + expenses.education +
+      expenses.groceries + expenses.transport + expenses.sport;
+    
+    let variableExpenses = 
+      expenses.various + expenses.dining + expenses.shopping + expenses.activities;
 
-    if (index === 3) monthlyExpenses += expenses.vacationEaster;
-    if (index === 6 || index === 7) monthlyExpenses += (expenses.vacationSummer / 2);
-    if (index === 11) monthlyExpenses += expenses.vacationXmas;
+    if (index === 3) variableExpenses += expenses.vacationEaster;
+    if (index === 6 || index === 7) variableExpenses += (expenses.vacationSummer / 2);
+    if (index === 11) variableExpenses += expenses.vacationXmas;
+
+    const monthlyExpenses = fixedExpenses + variableExpenses;
 
     // 2. ACTUALS OVERRIDE LOGIC
     const actualIncome = adjustments.income[index] || 0;
     const actualExpense = adjustments.expenses[index] || 0;
 
     const forecastTotalCashIn = monthlyIncome + consultancyNet + equityCashFlow;
-    // IF Actual > 0, use Actual, else Forecast
     const totalCashIn = actualIncome > 0 ? actualIncome : forecastTotalCashIn;
 
     const forecastTotalExpenses = monthlyExpenses;
@@ -294,6 +301,8 @@ const calculateCashFlow = (state: AppState) => {
       totalIncome: totalCashIn,
       expenses: totalExpenses,
       forecastExpenses: forecastTotalExpenses,
+      fixedExpenses, // Export for totals
+      variableExpenses, // Export for totals
       adjExpense: actualExpense, 
       netFlow: netLiquidChange,
       taxDebtAccrual: taxDebt,
@@ -506,11 +515,16 @@ export default function FinanceDashboard() {
   
   const [state, setState] = useState<AppState>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('finance_dashboard_2026_v22');
+      const saved = localStorage.getItem('finance_dashboard_2026_v24');
       if (saved) {
         try { 
           const parsed = JSON.parse(saved);
-          return { ...DEFAULT_STATE, ...parsed, adjustments: parsed.adjustments || DEFAULT_STATE.adjustments }; 
+          return { 
+            ...DEFAULT_STATE, 
+            ...parsed, 
+            expenses: { ...DEFAULT_STATE.expenses, ...parsed.expenses },
+            adjustments: parsed.adjustments || DEFAULT_STATE.adjustments,
+          }; 
         } catch (e) { console.error(e); }
       }
     }
@@ -518,7 +532,7 @@ export default function FinanceDashboard() {
   });
 
   useEffect(() => {
-    localStorage.setItem('finance_dashboard_2026_v22', JSON.stringify(state));
+    localStorage.setItem('finance_dashboard_2026_v24', JSON.stringify(state));
   }, [state]);
 
   // Engines
@@ -527,9 +541,17 @@ export default function FinanceDashboard() {
   const cashFlowTotals = useMemo(() => {
     const totalCashIncome = projection.reduce((acc, curr) => acc + curr.totalIncome, 0);
     const totalExpenses = projection.reduce((acc, curr) => acc + curr.expenses, 0);
+    
+    // Logic IV Breakdown
+    const totalFixedExpenses = projection.reduce((acc, curr) => acc + curr.fixedExpenses, 0);
+    const totalVariableExpenses = projection.reduce((acc, curr) => acc + curr.variableExpenses, 0);
+
     const taxDebt = projection[11].cumulativeTaxDebt;
     const netLiquidity = projection[11].cumulativeCash; 
     
+    // Monthly Average Availability
+    const monthlyInvestmentAvailability = netLiquidity / 12;
+
     const baseCashIncome = projection.reduce((acc, curr) => acc + curr.salary + curr.consultancy, 0);
     const equityIncome = state.equity.includeInSavingsRate ? totalEquityValue : 0;
     const effectiveIncome = baseCashIncome + equityIncome;
@@ -537,14 +559,11 @@ export default function FinanceDashboard() {
     const dynamicSavingsRate = effectiveIncome > 0 ? (effectiveSavings / effectiveIncome) * 100 : 0;
 
     const pieData = [
-      { name: 'Housing & Utilities', value: (state.expenses.mortgage + state.expenses.utilities + state.expenses.houseMaintenance) * 12 },
-      { name: 'Daily Living', value: (state.expenses.groceries + state.expenses.transport + state.expenses.houseHelp + state.expenses.healthcare + state.expenses.various) * 12 },
-      { name: 'Lifestyle & Sport', value: (state.expenses.dining + state.expenses.shopping + state.expenses.sport) * 12 },
-      { name: 'Education', value: (state.expenses.education + state.expenses.activities) * 12 },
-      { name: 'Travel', value: state.expenses.vacationEaster + state.expenses.vacationSummer + state.expenses.vacationXmas },
+      { name: 'Fixed (Home/Bills)', value: totalFixedExpenses },
+      { name: 'Variable & Lifestyle', value: totalVariableExpenses }
     ];
 
-    return { totalCashIncome, totalExpenses, taxDebt, netLiquidity, dynamicSavingsRate, pieData };
+    return { totalCashIncome, totalExpenses, totalFixedExpenses, totalVariableExpenses, taxDebt, netLiquidity, dynamicSavingsRate, pieData, monthlyInvestmentAvailability };
   }, [projection, totalEquityValue, state.equity.includeInSavingsRate, state.expenses]);
 
   const netWorthTotals = useMemo(() => {
@@ -696,21 +715,24 @@ export default function FinanceDashboard() {
                
                {isConfigOpen && (
                  <div className="p-6 pt-0 border-t border-slate-200 bg-white">
-                   <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+                   
+                   <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                      
                      {/* IN SECTION */}
                      <div className="bg-emerald-50/40 rounded-xl border border-emerald-100 p-5">
                        <div className="flex items-center gap-2 mb-4 text-emerald-800 border-b border-emerald-200 pb-2">
                          <TrendingUp size={16} />
-                         <span className="text-xs font-bold uppercase tracking-widest">Cash In Estimates</span>
+                         <span className="text-xs font-bold uppercase tracking-widest">I. Cash In</span>
                        </div>
                        
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-8">
                            {/* Income Inputs */}
                            <div>
                              <SectionHeader title="Salary & Bonus" />
-                             <InputGroup label="Salary (Annual Gross)" value={state.income.baseSalaryGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, baseSalaryGross: val } }))} />
-                             <InputGroup label="Bonus (Annual Gross)" value={state.income.variableBonusGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, variableBonusGross: val } }))} />
+                             <div className="grid grid-cols-2 gap-2">
+                                <InputGroup label="Salary (Annual Gross)" value={state.income.baseSalaryGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, baseSalaryGross: val } }))} />
+                                <InputGroup label="Bonus (Annual Gross)" value={state.income.variableBonusGross} onChange={(val: number) => setState(s => ({ ...s, income: { ...s.income, variableBonusGross: val } }))} />
+                             </div>
                              <div className="pt-2">
                                 <ToggleControl label="Additional Income" checked={state.consultancy.isActive} onChange={(val: boolean) => setState(s => ({ ...s, consultancy: { ...s.consultancy, isActive: val } }))} />
                                 {state.consultancy.isActive && (
@@ -743,29 +765,32 @@ export default function FinanceDashboard() {
                           <span className="text-xs font-bold uppercase tracking-widest">Cash Out Estimates</span>
                        </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                           {/* Outflow 1 */}
-                           <div>
-                               <SectionHeader title="Fixed & Living" />
-                               <div className="grid grid-cols-1 gap-2">
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-8">
+                           {/* II. FIXED COSTS */}
+                           <div className="border-r border-rose-100 pr-4">
+                               <div className="mb-2 text-xs font-bold text-rose-800 uppercase tracking-wider">II. Fixed Costs</div>
+                               <div className="grid grid-cols-2 gap-2">
                                  <InputGroup label="Mortgage" icon={Home} value={state.expenses.mortgage} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, mortgage: v}}))} />
+                                 <InputGroup label="House" icon={Wrench} value={state.expenses.houseMaintenance} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseMaintenance: v}}))} />
                                  <InputGroup label="Utilities" value={state.expenses.utilities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, utilities: v}}))} />
+                                 <InputGroup label="House Help" icon={Users} value={state.expenses.houseHelp} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseHelp: v}}))} />
+                                 <InputGroup label="Education" icon={GraduationCap} value={state.expenses.education} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, education: v}}))} />
+                                 <InputGroup label="Healthcare" icon={Heart} value={state.expenses.healthcare} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, healthcare: v}}))} />
                                  <InputGroup label="Groceries" value={state.expenses.groceries} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, groceries: v}}))} />
                                  <InputGroup label="Transport" icon={Car} value={state.expenses.transport} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, transport: v}}))} />
-                                 <InputGroup label="Housekeeping" icon={Users} value={state.expenses.houseHelp} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, houseHelp: v}}))} />
-                                 <InputGroup label="Medical" icon={Heart} value={state.expenses.healthcare} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, healthcare: v}}))} />
+                                 <InputGroup label="Sport" icon={Trophy} value={state.expenses.sport} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, sport: v}}))} />
                                </div>
                            </div>
-                           {/* Outflow 2 */}
+                           
+                           {/* III. VARIABLE COSTS */}
                            <div>
-                               <SectionHeader title="Lifestyle & Kids" />
+                               <div className="mb-2 text-xs font-bold text-rose-800 uppercase tracking-wider">III. Variable & Lifestyle Costs</div>
                                <div className="grid grid-cols-2 gap-2">
-                                  <InputGroup label="Shopping" icon={ShoppingBag} value={state.expenses.shopping} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, shopping: v}}))} />
                                   <InputGroup label="Dining" icon={Utensils} value={state.expenses.dining} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, dining: v}}))} />
+                                  <InputGroup label="Shopping" icon={ShoppingBag} value={state.expenses.shopping} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, shopping: v}}))} />
+                                  <InputGroup label="Activities" value={state.expenses.activities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, activities: v}}))} />
+                                  <InputGroup label="Various" icon={Layers} value={state.expenses.various} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, various: v}}))} />
                                </div>
-                               <InputGroup label="Education" icon={GraduationCap} value={state.expenses.education} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, education: v}}))} />
-                               <InputGroup label="Activities" icon={Trophy} value={state.expenses.activities} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, activities: v}}))} />
-                               <InputGroup label="Various" icon={Layers} value={state.expenses.various} onChange={(v:number) => setState(s => ({...s, expenses: {...s.expenses, various: v}}))} />
                                
                                <div className="mt-4"></div>
                                <SectionHeader title="Travel" />
@@ -779,6 +804,28 @@ export default function FinanceDashboard() {
                      </div>
 
                    </div>
+
+                   {/* IV. INVESTMENT AVAILABILITY (RESULT) - MOVED TO BOTTOM */}
+                   <div className="mt-6 mb-6">
+                     <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-xl flex items-center gap-6">
+                        <div className="flex items-center gap-2 text-indigo-700">
+                           <Calculator size={20} />
+                           <span className="text-xs font-bold uppercase tracking-widest">IV. Monthly Investment Availability</span>
+                        </div>
+                        <div className="flex-1"></div>
+                        <div className="text-right flex items-center gap-6">
+                           <div>
+                              <div className="text-xs font-mono text-indigo-400 uppercase tracking-wide">Monthly Free Cash</div>
+                              <div className="text-3xl font-bold font-mono tracking-tight text-indigo-900">{formatCurrency(cashFlowTotals.monthlyInvestmentAvailability)}</div>
+                           </div>
+                           <div className="text-right border-l border-indigo-200 pl-6">
+                              <div className="text-xs font-mono text-indigo-400 uppercase tracking-wide">Total Annual</div>
+                              <div className="text-lg font-bold text-indigo-900">{formatCompact(cashFlowTotals.netLiquidity)}</div>
+                           </div>
+                        </div>
+                     </div>
+                   </div>
+
                  </div>
                )}
              </div>
@@ -843,15 +890,14 @@ export default function FinanceDashboard() {
                         <th className="px-4 py-4 w-24">Month</th>
                         <th className="px-4 py-4 w-40 text-emerald-700">Cash In (Actual)</th>
                         <th className="px-4 py-4 w-40 text-rose-700">Cash Out (Actual)</th>
-                        <th className="px-4 py-4 text-emerald-600/70 text-right hidden md:table-cell">Est. In</th>
-                        <th className="px-4 py-4 text-rose-600/70 text-right hidden md:table-cell">Est. Out</th>
                         <th className="px-4 py-4 text-blue-600 text-right">Net Flow</th>
+                        <th className="px-4 py-4 text-slate-700 text-right">Cumulative</th>
                         <th className="px-4 py-4 text-amber-600 text-right">Tax Trap</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {projection.map((row, i) => (
-                        <tr key={i} className={`hover:bg-slate-50 transition-colors ${row.adjIncome > 0 || row.adjExpense > 0 ? 'bg-blue-50/30' : ''}`}>
+                        <tr key={i} className={`hover:bg-slate-50 transition-colors ${row.adjIncome > 0 || row.adjExpense > 0 ? 'bg-blue-50/30 border-l-4 border-blue-500' : ''}`}>
                           <td className="px-4 py-3 font-bold text-slate-800">{row.name}</td>
                           
                           {/* INCOME INPUT */}
@@ -889,12 +935,12 @@ export default function FinanceDashboard() {
                               />
                             </div>
                           </td>
-
-                          <td className="px-4 py-3 text-right font-mono text-xs text-slate-400 hidden md:table-cell">{formatCompact(row.forecastIncome)}</td>
-                          <td className="px-4 py-3 text-right font-mono text-xs text-slate-400 hidden md:table-cell">{formatCompact(row.forecastExpenses)}</td>
                           
                           <td className={`px-4 py-3 text-right font-mono font-bold ${row.netFlow > 0 ? 'text-blue-600' : 'text-rose-600'}`}>
                             {formatCurrency(row.netFlow)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold text-slate-700">
+                             {formatCurrency(row.cumulativeCash)}
                           </td>
                           <td className="px-4 py-3 text-right font-mono text-amber-600">
                             {row.taxDebtAccrual > 0 ? formatCurrency(row.taxDebtAccrual) : '-'}
