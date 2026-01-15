@@ -11,7 +11,7 @@ import {
   ShoppingCart, Car, Utensils, Heart, Users, Shirt, Trophy, Printer, FileText, Layers,
   CreditCard, DollarSign, Wrench, ShoppingBag, Building2, Coins, CandlestickChart, Plus, Trash2,
   Landmark, ArrowRight, PieChart as PieChartIcon, BarChart3, SlidersHorizontal, LayoutDashboard,
-  Edit3, ChevronDown, ChevronUp, Calculator
+  Edit3, ChevronDown, ChevronUp, Calculator, Target
 } from 'lucide-react';
 
 // --- Types & Interfaces ---
@@ -515,7 +515,7 @@ export default function FinanceDashboard() {
   
   const [state, setState] = useState<AppState>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('finance_dashboard_2026_v24');
+      const saved = localStorage.getItem('finance_dashboard_2026_v25');
       if (saved) {
         try { 
           const parsed = JSON.parse(saved);
@@ -532,7 +532,7 @@ export default function FinanceDashboard() {
   });
 
   useEffect(() => {
-    localStorage.setItem('finance_dashboard_2026_v24', JSON.stringify(state));
+    localStorage.setItem('finance_dashboard_2026_v25', JSON.stringify(state));
   }, [state]);
 
   // Engines
@@ -549,8 +549,8 @@ export default function FinanceDashboard() {
     const taxDebt = projection[11].cumulativeTaxDebt;
     const netLiquidity = projection[11].cumulativeCash; 
     
-    // Monthly Average Availability
-    const monthlyInvestmentAvailability = netLiquidity / 12;
+    // Monthly Average Availability: 80% of (Annual Net / 12)
+    const monthlyInvestmentAvailability = (netLiquidity / 12) * 0.80;
 
     const baseCashIncome = projection.reduce((acc, curr) => acc + curr.salary + curr.consultancy, 0);
     const equityIncome = state.equity.includeInSavingsRate ? totalEquityValue : 0;
@@ -650,6 +650,8 @@ export default function FinanceDashboard() {
               <KPICard title="Avg Monthly In" value={formatCurrency(cashFlowTotals.totalCashIncome / 12)} icon={ArrowRight} highlight={true} />
               <KPICard title="Avg Monthly Out" value={formatCurrency(cashFlowTotals.totalExpenses / 12)} icon={ArrowRight} secondary={true} />
               <KPICard title={state.equity.includeInSavingsRate ? "Total Savings Rate" : "Cash Savings Rate"} value={`${cashFlowTotals.dynamicSavingsRate.toFixed(1)}%`} subtext="Efficiency Ratio" icon={TrendingUp} />
+              
+              <KPICard title="Invest Avail / Mo" value={formatCurrency(cashFlowTotals.monthlyInvestmentAvailability)} subtext="80% of Monthly Net" icon={Target} highlight={true} />
 
               <div className="border-t border-slate-200 my-4"></div>
 
@@ -804,28 +806,6 @@ export default function FinanceDashboard() {
                      </div>
 
                    </div>
-
-                   {/* IV. INVESTMENT AVAILABILITY (RESULT) - MOVED TO BOTTOM */}
-                   <div className="mt-6 mb-6">
-                     <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-xl flex items-center gap-6">
-                        <div className="flex items-center gap-2 text-indigo-700">
-                           <Calculator size={20} />
-                           <span className="text-xs font-bold uppercase tracking-widest">IV. Monthly Investment Availability</span>
-                        </div>
-                        <div className="flex-1"></div>
-                        <div className="text-right flex items-center gap-6">
-                           <div>
-                              <div className="text-xs font-mono text-indigo-400 uppercase tracking-wide">Monthly Free Cash</div>
-                              <div className="text-3xl font-bold font-mono tracking-tight text-indigo-900">{formatCurrency(cashFlowTotals.monthlyInvestmentAvailability)}</div>
-                           </div>
-                           <div className="text-right border-l border-indigo-200 pl-6">
-                              <div className="text-xs font-mono text-indigo-400 uppercase tracking-wide">Total Annual</div>
-                              <div className="text-lg font-bold text-indigo-900">{formatCompact(cashFlowTotals.netLiquidity)}</div>
-                           </div>
-                        </div>
-                     </div>
-                   </div>
-
                  </div>
                )}
              </div>
