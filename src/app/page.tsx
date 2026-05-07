@@ -88,8 +88,10 @@ interface AppState {
   assets: Asset[];
   portfolio: PortfolioItem[];
   adjustments: {
-    income: number[]; 
-    expenses: number[]; 
+    incomeGoogle: number[];
+    incomeOther: number[];
+    expenses: number[];
+    income?: number[]; // for legacy migration
   };
 }
 
@@ -144,7 +146,8 @@ const DEFAULT_STATE: AppState = {
     { id: '2', ticker: 'BTC', type: 'Crypto', quantity: 0, avgPrice: 0, priceSoY: 0, priceEoY: 0 },
   ],
   adjustments: {
-    income: Array(12).fill(0),
+    incomeGoogle: Array(12).fill(0),
+    incomeOther: Array(12).fill(0),
     expenses: Array(12).fill(0),
   }
 };
@@ -274,12 +277,17 @@ const calculateCashFlow = (state: AppState) => {
 
     const monthlyExpenses = fixedExpenses + variableExpenses;
 
-    // 2. ACTUALS OVERRIDE LOGIC
-    const actualIncome = adjustments.income[index] || 0;
+    // 2. OVERRIDE LOGIC
+    const actualGoogle = adjustments.incomeGoogle[index] || 0;
+    const actualOther = adjustments.incomeOther[index] || 0;
     const actualExpense = adjustments.expenses[index] || 0;
 
-    const forecastTotalCashIn = monthlyIncome + consultancyNet + equityCashFlow;
-    const totalCashIn = actualIncome > 0 ? actualIncome : forecastTotalCashIn;
+    const forecastGoogleCashIn = monthlyIncome + equityCashFlow;
+    const forecastOtherCashIn = consultancyNet;
+
+    const finalGoogle = actualGoogle > 0 ? actualGoogle : forecastGoogleCashIn;
+    const finalOther = actualOther > 0 ? actualOther : forecastOtherCashIn;
+    const totalCashIn = finalGoogle + finalOther;
 
     const forecastTotalExpenses = monthlyExpenses;
     const totalExpenses = actualExpense > 0 ? actualExpense : forecastTotalExpenses;
@@ -296,8 +304,10 @@ const calculateCashFlow = (state: AppState) => {
       salary: monthlyIncome,
       consultancy: consultancyNet,
       equityCash: equityCashFlow,
-      adjIncome: actualIncome, 
-      forecastIncome: forecastTotalCashIn,
+      adjGoogle: actualGoogle, 
+      adjOther: actualOther,
+      forecastGoogle: forecastGoogleCashIn,
+      forecastOther: forecastOtherCashIn,
       totalIncome: totalCashIn,
       expenses: totalExpenses,
       forecastExpenses: forecastTotalExpenses,
@@ -519,11 +529,18 @@ export default function FinanceDashboard() {
       if (saved) {
         try { 
           const parsed = JSON.parse(saved);
+          
+          // Data Migration
+          const adjs = parsed.adjustments || DEFAULT_STATE.adjustments;
+          const incomeGoogle = adjs.incomeGoogle || adjs.income || Array(12).fill(0);
+          const incomeOther = adjs.incomeOther || Array(12).fill(0);
+          const expenses = adjs.expenses || Array(12).fill(0);
+
           return { 
             ...DEFAULT_STATE, 
             ...parsed, 
             expenses: { ...DEFAULT_STATE.expenses, ...parsed.expenses },
-            adjustments: parsed.adjustments || DEFAULT_STATE.adjustments,
+            adjustments: { incomeGoogle, incomeOther, expenses },
           }; 
         } catch (e) { console.error(e); }
       }
@@ -605,7 +622,7 @@ export default function FinanceDashboard() {
     setState(prev => ({ ...prev, portfolio: prev.portfolio.filter(p => p.id !== id) }));
   };
 
-  const handleAdjustmentChange = (type: 'income' | 'expenses', index: number, value: number) => {
+  const handleAdjustmentChange = (type: 'incomeGoogle' | 'incomeOther' | 'expenses', index: number, value: number) => {
     setState(prev => {
       const newAdj = [...prev.adjustments[type]];
       newAdj[index] = value;
@@ -857,7 +874,7 @@ export default function FinanceDashboard() {
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <Edit3 size={18} className="text-blue-600" />
-                    <h3 className="text-lg font-bold text-slate-800">Actual Cash Flow (monthly ledger)</h3>
+                    <h3 className="text-lg font-bold text-slate-800">Cash Flow (monthly ledger)</h3>
                   </div>
                   <span className="text-xs text-slate-400 font-medium bg-white px-2 py-1 rounded border border-slate-200">
                     Edit cells to override forecasts
@@ -868,8 +885,9 @@ export default function FinanceDashboard() {
                     <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-500">
                       <tr>
                         <th className="px-4 py-4 w-24">Month</th>
-                        <th className="px-4 py-4 w-40 text-emerald-700">Cash In (Actual)</th>
-                        <th className="px-4 py-4 w-40 text-rose-700">Cash Out (Actual)</th>
+                        <th className="px-4 py-4 w-36 text-emerald-700">Google Cash In</th>
+                        <th className="px-4 py-4 w-36 text-emerald-600">Other Cash In</th>
+                        <th className="px-4 py-4 w-36 text-rose-700">Cash Out</th>
                         <th className="px-4 py-4 text-blue-600 text-right">Net Flow</th>
                         <th className="px-4 py-4 text-slate-700 text-right">Cumulative</th>
                         <th className="px-4 py-4 text-amber-600 text-right">Tax Trap</th>
@@ -877,23 +895,41 @@ export default function FinanceDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {projection.map((row, i) => (
-                        <tr key={i} className={`hover:bg-slate-50 transition-colors ${row.adjIncome > 0 || row.adjExpense > 0 ? 'bg-blue-50/30 border-l-4 border-blue-500' : ''}`}>
+                        <tr key={i} className={`hover:bg-slate-50 transition-colors ${row.adjGoogle > 0 || row.adjOther > 0 || row.adjExpense > 0 ? 'bg-blue-50/30 border-l-4 border-blue-500' : ''}`}>
                           <td className="px-4 py-3 font-bold text-slate-800">{row.name}</td>
                           
-                          {/* INCOME INPUT */}
+                          {/* GOOGLE CASH IN INPUT */}
                           <td className="px-4 py-2">
                             <div className="relative">
                               <input 
                                 type="text"
                                 inputMode="decimal"
-                                value={formatInputDisplay(row.adjIncome)}
-                                onChange={(e) => handleAdjustmentChange('income', i, parseInputToNumber(e.target.value))}
+                                value={formatInputDisplay(row.adjGoogle)}
+                                onChange={(e) => handleAdjustmentChange('incomeGoogle', i, parseInputToNumber(e.target.value))}
                                 className={`w-full text-right p-2 rounded border shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono font-bold placeholder:text-slate-500 ${
-                                  row.adjIncome > 0 
+                                  row.adjGoogle > 0 
                                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
                                     : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-400'
                                 }`}
-                                placeholder={formatCompact(row.forecastIncome)}
+                                placeholder={formatCompact(row.forecastGoogle)}
+                              />
+                            </div>
+                          </td>
+
+                          {/* OTHER CASH IN INPUT */}
+                          <td className="px-4 py-2">
+                            <div className="relative">
+                              <input 
+                                type="text"
+                                inputMode="decimal"
+                                value={formatInputDisplay(row.adjOther)}
+                                onChange={(e) => handleAdjustmentChange('incomeOther', i, parseInputToNumber(e.target.value))}
+                                className={`w-full text-right p-2 rounded border shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono font-bold placeholder:text-slate-500 ${
+                                  row.adjOther > 0 
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
+                                    : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-400'
+                                }`}
+                                placeholder={formatCompact(row.forecastOther)}
                               />
                             </div>
                           </td>
